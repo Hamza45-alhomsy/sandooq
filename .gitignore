@@ -40,5 +40,5 @@ service-account-key.json
 *.tsbuildinfo
 next-env.d.ts
 
-/src/generated/prisma
-/src/backend/test-api.js
+./src/generated/prisma
+./src/backend/test-api.js
