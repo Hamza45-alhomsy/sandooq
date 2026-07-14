@@ -6,69 +6,59 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("🌱 Seeding database...");
 
-  // 1. Create Roles
-  const adminRole = await prisma.role.upsert({
-    where: { name: "admin" },
-    update: {},
-    create: { name: "admin", description: "System Administrator" },
-  });
-  const investorRole = await prisma.role.upsert({
-    where: { name: "investor" },
-    update: {},
-    create: { name: "investor", description: "Investor" },
-  });
-  const clientRole = await prisma.role.upsert({
-    where: { name: "client" },
-    update: {},
-    create: { name: "client", description: "Client" },
+  // ========== 1. Create Roles ==========
+  await prisma.role.createMany({
+    data: [
+      { name: "admin", description: "System Administrator" },
+      { name: "investor", description: "Investor" },
+      { name: "client", description: "Client" },
+    ],
+    skipDuplicates: true,
   });
 
-  // 2. Create Permissions (resource + action)
+  // Fetch the roles to get their IDs for permissions
+  const adminRole = await prisma.role.findUnique({ where: { name: "admin" } });
+  const investorRole = await prisma.role.findUnique({
+    where: { name: "investor" },
+  });
+  const clientRole = await prisma.role.findUnique({
+    where: { name: "client" },
+  });
+
+  if (!adminRole || !investorRole || !clientRole) {
+    throw new Error("Roles not found after creation");
+  }
+
+  // ========== 2. Create Permissions ==========
   const permissions = [
-    // Orders
+    // Admin permissions
     { roleId: adminRole.id, resource: "order", action: "view_all" },
     { roleId: adminRole.id, resource: "order", action: "create" },
     { roleId: adminRole.id, resource: "order", action: "approve" },
     { roleId: adminRole.id, resource: "order", action: "execute" },
     { roleId: adminRole.id, resource: "order", action: "delete" },
-    // Users
     { roleId: adminRole.id, resource: "user", action: "manage" },
-    // Fund
     { roleId: adminRole.id, resource: "fund", action: "view" },
     { roleId: adminRole.id, resource: "fund", action: "manage" },
-    // Reports
     { roleId: adminRole.id, resource: "report", action: "view" },
     { roleId: adminRole.id, resource: "report", action: "export" },
-    // Audit
     { roleId: adminRole.id, resource: "audit", action: "view" },
-    // Settings
     { roleId: adminRole.id, resource: "setting", action: "manage" },
-
     // Investor permissions
     { roleId: investorRole.id, resource: "order", action: "view_all" },
     { roleId: investorRole.id, resource: "fund", action: "view" },
     { roleId: investorRole.id, resource: "report", action: "view" },
-
     // Client permissions
     { roleId: clientRole.id, resource: "order", action: "create" },
     { roleId: clientRole.id, resource: "order", action: "view_own" },
   ];
 
-  for (const p of permissions) {
-    await prisma.permission.upsert({
-      where: {
-        roleId_resource_action: {
-          roleId: p.roleId,
-          resource: p.resource,
-          action: p.action,
-        },
-      },
-      update: {},
-      create: p,
-    });
-  }
+  await prisma.permission.createMany({
+    data: permissions,
+    skipDuplicates: true,
+  });
 
-  // 3. Categories
+  // ========== 3. Create Categories ==========
   const categories = [
     { name: "Investment Returns", type: "income" },
     { name: "Project Income", type: "income" },
@@ -83,22 +73,19 @@ async function main() {
     { name: "Other Income", type: "income" },
     { name: "Other Expenses", type: "expense" },
   ];
-  for (const cat of categories) {
-    await prisma.category.upsert({
-      where: { name: cat.name },
-      update: {},
-      create: cat,
-    });
-  }
 
-  // 4. Create default Fund
-  await prisma.fund.upsert({
-    where: { id: 1 },
-    update: {},
-    create: { name: "Main Fund", currentBalance: 0, currency: "SYP" },
+  await prisma.category.createMany({
+    data: categories,
+    skipDuplicates: true,
   });
 
-  // 5. Settings
+  // ========== 4. Create default Fund ==========
+  await prisma.fund.createMany({
+    data: [{ id: 1, name: "Main Fund", currentBalance: 0, currency: "SYP" }],
+    skipDuplicates: true,
+  });
+
+  // ========== 5. Create Settings ==========
   const settings = [
     {
       key: "company_name",
@@ -109,18 +96,13 @@ async function main() {
     { key: "currency", value: "SYP", group: "financial" },
     { key: "require_approval", value: "true", group: "system" },
   ];
-  for (const s of settings) {
-    await prisma.setting.upsert({
-      where: { key: s.key },
-      update: {},
-      create: s,
-    });
-  }
+
+  await prisma.setting.createMany({
+    data: settings,
+    skipDuplicates: true,
+  });
 
   console.log("✅ Seeding complete!");
-  console.log(
-    "⚠️ Remember to create an admin user in Firebase Auth and then insert into the User table manually.",
-  );
 }
 
 main()

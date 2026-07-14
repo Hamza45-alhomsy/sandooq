@@ -7,6 +7,7 @@ import {
   useEffect,
   useState,
   ReactNode,
+  useRef,
 } from "react";
 import { auth } from "@/lib/firebase/config";
 import {
@@ -37,53 +38,91 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState<string | null>(null);
+  const isMounted = useRef(true);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(
-      auth,
-      async (firebaseUser: FirebaseUser | null) => {
-        setLoading(true);
+    isMounted.current = true;
 
-        if (firebaseUser) {
-          try {
-            // Get Firebase ID token
-            const idToken = await firebaseUser.getIdToken();
-            setToken(idToken);
+    const verifyUser = async (firebaseUser: FirebaseUser | null) => {
+      if (!isMounted.current) return;
 
-            // Verify with your backend and get user data + permissions
-            const res = await fetch(
-              `${process.env.NEXT_PUBLIC_API_URL}/api/auth/verify`,
-              {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ token: idToken }),
-              },
-            );
+      if (firebaseUser) {
+        try {
+          const idToken = await firebaseUser.getIdToken(true);
+          setToken(idToken);
 
-            if (res.ok) {
-              const data = await res.json();
-              setUser(data.user);
-            } else {
-              console.error("Failed to fetch user from backend");
-              setUser(null);
-              setToken(null);
-              await signOut(auth);
-            }
-          } catch (error) {
-            console.error("Auth error:", error);
+          const res = await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL}/api/auth/verify`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ token: idToken }),
+            },
+          );
+
+          if (res.status === 401 || res.status === 403) {
+            console.warn("Token invalid or user disabled.");
+            await signOut(auth);
+            setUser(null);
+            setToken(null);
+          } else if (res.ok) {
+            const data = await res.json();
+            setUser(data.user);
+          } else {
+            console.error("Backend error:", res.status);
             setUser(null);
             setToken(null);
           }
-        } else {
+        } catch (error) {
+          console.error("Network error:", error);
           setUser(null);
           setToken(null);
         }
+      } else {
+        // No user
+        setUser(null);
+        setToken(null);
+      }
 
+      // 🔥 IMPORTANT: Only set loading to false AFTER the first check is complete
+      if (isMounted.current) {
         setLoading(false);
-      },
-    );
+      }
+    };
 
-    return () => unsubscribe();
+    // 🛡️ Step 1: Wait for Firebase to restore the session
+    // This prevents the initial 'null' emission from triggering a redirect.
+    auth
+      .authStateReady()
+      .then(() => {
+        if (!isMounted.current) return;
+        // Now the session is restored, get the current user.
+        const firebaseUser = auth.currentUser;
+        verifyUser(firebaseUser);
+      })
+      .catch((error) => {
+        console.error("authStateReady error:", error);
+        if (isMounted.current) {
+          setUser(null);
+          setToken(null);
+          setLoading(false);
+        }
+      });
+
+    // 🛡️ Step 2: Subscribe to future auth changes (logout, login in other tabs)
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      // Only handle changes after the initial load is done
+      // If loading is false, we are in "watching" mode.
+      if (!loading) {
+        verifyUser(firebaseUser);
+      }
+    });
+
+    // Cleanup
+    return () => {
+      isMounted.current = false;
+      unsubscribe();
+    };
   }, []);
 
   const logout = async () => {

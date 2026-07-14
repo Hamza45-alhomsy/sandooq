@@ -1,0 +1,87 @@
+{
+  "Common": {
+    "loading": "جاري التحميل...",
+    "error": "خطأ",
+    "back": "رجوع",
+    "logout": "تسجيل الخروج",
+    "income": "إيراد",
+    "expense": "مصروف",
+    "syp": "SYP",
+    "noOrders": "لا توجد طلبات",
+    "networkError": "حدث خطأ في الشبكة",
+    "createSuccess": "تم إنشاء الطلب بنجاح",
+    "createFailed": "فشل إنشاء الطلب",
+    "approveSuccess": "تمت الموافقة على الطلب",
+    "executeSuccess": "تم تنفيذ الطلب",
+    "operationFailed": "فشل العملية",
+    "view": "عرض",
+    "pending": "قيد الانتظار",
+    "approved": "موافق عليه",
+    "executed": "منفذ",
+    "rejected": "مرفوض",
+    "cancelled": "ملغي"
+  },
+  "Login": {
+    "title": "نظام إدارة التدفق النقدي",
+    "description": "قم بتسجيل الدخول للوصول إلى لوحة التحكم",
+    "email": "البريد الإلكتروني",
+    "password": "كلمة المرور",
+    "emailPlaceholder": "admin@system.com",
+    "passwordPlaceholder": "••••••••",
+    "signIn": "تسجيل الدخول",
+    "signingIn": "جاري تسجيل الدخول...",
+    "loginFailed": "فشل تسجيل الدخول"
+  },
+  "FundPage": {
+    "title": "رصيد الصندوق",
+    "cardTitle": "الصندوق الرئيسي",
+    "lastUpdated": "آخر تحديث"
+  },
+  "Orders": {
+    "title": "الطلبات",
+    "newOrder": "طلب جديد",
+    "orderNumber": "رقم الطلب",
+    "description": "العنوان",
+    "type": "النوع",
+    "amount": "المبلغ",
+    "status": "الحالة",
+    "date": "التاريخ",
+    "actions": "الإجراءات"
+  },
+  "OrderDetail": {
+    "title": "تفاصيل الطلب",
+    "orderNumber": "رقم الطلب",
+    "description": "العنوان",
+    "type": "النوع",
+    "amount": "المبلغ",
+    "status": "الحالة",
+    "client": "العميل",
+    "items": "العناصر",
+    "approve": "الموافقة",
+    "execute": "تنفيذ"
+  },
+  "CreateOrder": {
+    "title": "طلب جديد",
+    "orderInfo": "معلومات الطلب",
+    "orderType": "نوع الطلب",
+    "selectType": "اختر النوع",
+    "description": "الوصف",
+    "descriptionPlaceholder": "وصف الطلب (اختياري)",
+    "items": "العناصر",
+    "descriptionPlaceholderItem": "الوصف",
+    "quantity": "الكمية",
+    "price": "السعر",
+    "addItem": "إضافة عنصر",
+    "remove": "حذف",
+    "total": "المجموع",
+    "create": "إنشاء الطلب",
+    "creating": "جاري الإنشاء..."
+  },
+  "Dashboard": {
+    "title": "لوحة التحكم",
+    "totalOrders": "إجمالي الطلبات",
+    "pending": "قيد الانتظار",
+    "fundBalance": "رصيد الصندوق",
+    "monthly": "شهرية"
+  }
+}

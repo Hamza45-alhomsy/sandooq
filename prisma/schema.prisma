@@ -1,53 +1,41 @@
-// ============================================
-// PRISMA SCHEMA - Cash Flow Management System
-// Version: 6.6.0 | MySQL
-// ============================================
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "mysql"
-   url      = env("DATABASE_URL")
+  url      = env("DATABASE_URL")
 }
 
-// ============================================
-// USER & AUTH MODELS
-// ============================================
-
 model User {
-  id        Int      @id @default(autoincrement())
-  uid       String   @unique
-  email     String   @unique
-  fullName  String
-  phone     String?
-  roleId    Int
-  role      Role     @relation(fields: [roleId], references: [id], onDelete: NoAction)
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relations
-  orders            Order[] // orders created by this user
-  approvedOrders    Order[]    @relation("ApprovedOrders") // orders this user approved
-  executedOrders    Order[]    @relation("ExecutedOrders") // orders this user executed
-  uploadedDocuments Document[] // documents uploaded by this user
+  id                Int        @id @default(autoincrement())
+  uid               String     @unique
+  email             String     @unique
+  fullName          String
+  phone             String?
+  roleId            Int
+  isActive          Boolean    @default(true)
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
   auditLogs         AuditLog[]
+  uploadedDocuments Document[]
+  approvedOrders    Order[]    @relation("ApprovedOrders")
+  executedOrders    Order[]    @relation("ExecutedOrders")
+  orders            Order[]
+  role              Role       @relation(fields: [roleId], references: [id], onDelete: NoAction)
 
+  @@index([roleId], map: "users_roleId_fkey")
   @@map("users")
 }
 
 model Role {
-  id          Int      @id @default(autoincrement())
-  name        String   @unique
+  id          Int          @id @default(autoincrement())
+  name        String       @unique
   description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relations
-  users       User[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
   permissions Permission[]
+  users       User[]
 
   @@map("roles")
 }
@@ -55,169 +43,143 @@ model Role {
 model Permission {
   id        Int      @id @default(autoincrement())
   roleId    Int
-  role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
   resource  String
   action    String
   createdAt DateTime @default(now())
+  role      Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
   @@unique([roleId, resource, action])
   @@map("permissions")
 }
 
-// ============================================
-// FUND MODEL
-// ============================================
-
 model Fund {
-  id             Int      @id @default(autoincrement())
-  name           String   @default("Main Fund")
-  currentBalance Float    @default(0.0)
-  currency       String   @default("SYP")
+  id             Int           @id @default(autoincrement())
+  name           String        @default("Main Fund")
+  currentBalance Float         @default(0)
+  currency       String        @default("SYP")
   description    String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  // Relations
-  transactions Transaction[]
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  transactions   Transaction[]
 
   @@map("funds")
 }
 
-// ============================================
-// ORDER MODELS
-// ============================================
-
 model Order {
-  id           Int       @id @default(autoincrement())
-  orderNumber  String    @unique
-  type         String // 'income', 'expense'
-  status       String    @default("pending") // 'pending', 'approved', 'rejected', 'executed'
+  id           Int          @id @default(autoincrement())
+  orderNumber  String       @unique
+  type         String
+  status       String       @default("pending")
   totalAmount  Float
   description  String?
   userId       Int
-  user         User      @relation(fields: [userId], references: [id], onDelete: NoAction)
   approvedById Int?
-  approvedBy   User?     @relation("ApprovedOrders", fields: [approvedById], references: [id])
   executedById Int?
-  executedBy   User?     @relation("ExecutedOrders", fields: [executedById], references: [id])
   executedAt   DateTime?
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  documents    Document[]
+  items        OrderItem[]
+  approvedBy   User?        @relation("ApprovedOrders", fields: [approvedById], references: [id])
+  executedBy   User?        @relation("ExecutedOrders", fields: [executedById], references: [id])
+  user         User         @relation(fields: [userId], references: [id], onDelete: NoAction)
+  transaction  Transaction?
 
-  // Relations
-  items       OrderItem[]
-  transaction Transaction?
-  documents   Document[]
-
-  // Indexes for performance
   @@index([status, createdAt])
   @@index([userId, createdAt])
   @@index([orderNumber])
+  @@index([approvedById], map: "orders_approvedById_fkey")
+  @@index([executedById], map: "orders_executedById_fkey")
   @@map("orders")
 }
 
 model OrderItem {
   id          Int       @id @default(autoincrement())
   orderId     Int
-  order       Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
   description String
   quantity    Int       @default(1)
   unitPrice   Float
   totalPrice  Float
   categoryId  Int?
-  category    Category? @relation(fields: [categoryId], references: [id])
   createdAt   DateTime  @default(now())
+  category    Category? @relation(fields: [categoryId], references: [id])
+  order       Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
 
+  @@index([categoryId], map: "order_items_categoryId_fkey")
+  @@index([orderId], map: "order_items_orderId_fkey")
   @@map("order_items")
 }
 
 model Category {
-  id          Int      @id @default(autoincrement())
-  name        String   @unique
-  type        String // 'income', 'expense'
+  id          Int         @id @default(autoincrement())
+  name        String      @unique
+  type        String
   description String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relations
-  items OrderItem[]
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  items       OrderItem[]
 
   @@map("categories")
 }
 
-// ============================================
-// TRANSACTION MODEL
-// ============================================
-
 model Transaction {
   id            Int      @id @default(autoincrement())
   orderId       Int      @unique
-  order         Order    @relation(fields: [orderId], references: [id], onDelete: NoAction)
   fundId        Int
-  fund          Fund     @relation(fields: [fundId], references: [id], onDelete: NoAction)
-  amount        Float // Positive = income, Negative = expense
+  amount        Float
   balanceBefore Float
   balanceAfter  Float
   description   String?
   createdAt     DateTime @default(now())
+  fund          Fund     @relation(fields: [fundId], references: [id], onDelete: NoAction)
+  order         Order    @relation(fields: [orderId], references: [id], onDelete: NoAction)
 
   @@index([createdAt])
   @@index([fundId, createdAt])
   @@map("transactions")
 }
 
-// ============================================
-// DOCUMENT MODEL
-// ============================================
-
 model Document {
   id           Int      @id @default(autoincrement())
   orderId      Int
-  order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   fileName     String
   fileUrl      String
   fileSize     Int?
   mimeType     String?
   uploadedById Int
-  uploadedBy   User     @relation(fields: [uploadedById], references: [id], onDelete: NoAction)
   description  String?
   createdAt    DateTime @default(now())
+  order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  uploadedBy   User     @relation(fields: [uploadedById], references: [id], onDelete: NoAction)
 
   @@index([orderId, createdAt])
+  @@index([uploadedById], map: "documents_uploadedById_fkey")
   @@map("documents")
 }
-
-// ============================================
-// AUDIT LOG MODEL
-// ============================================
 
 model AuditLog {
   id         Int      @id @default(autoincrement())
   userId     Int
-  user       User     @relation(fields: [userId], references: [id], onDelete: NoAction)
-  action     String // 'CREATE_ORDER', 'APPROVE_ORDER', 'EXECUTE_ORDER', etc.
-  entityType String // 'Order', 'User', 'Fund', 'Setting'
-  entityId   Int // ID of the affected record
-  details    Json? // Additional context as JSON
+  action     String
+  entityType String
+  entityId   Int
+  details    Json?
   ipAddress  String?
   userAgent  String?
   createdAt  DateTime @default(now())
+  user       User     @relation(fields: [userId], references: [id], onDelete: NoAction)
 
   @@index([userId, createdAt])
   @@index([entityType, entityId])
   @@map("audit_logs")
 }
 
-// ============================================
-// SETTINGS MODEL
-// ============================================
-
 model Setting {
   id          Int      @id @default(autoincrement())
   key         String   @unique
   value       String
   description String?
-  group       String // 'general', 'notifications', 'system', 'company'
+  group       String
   isPublic    Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

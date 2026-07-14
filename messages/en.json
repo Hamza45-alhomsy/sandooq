@@ -1,0 +1,87 @@
+{
+  "Common": {
+    "loading": "Loading...",
+    "error": "Error",
+    "back": "Back",
+    "logout": "Logout",
+    "income": "Income",
+    "expense": "Expense",
+    "syp": "SYP",
+    "noOrders": "No orders found",
+    "networkError": "Network error occurred",
+    "createSuccess": "Order created successfully",
+    "createFailed": "Failed to create order",
+    "approveSuccess": "Order approved",
+    "executeSuccess": "Order executed",
+    "operationFailed": "Operation failed",
+    "view": "View",
+    "pending": "Pending",
+    "approved": "Approved",
+    "executed": "Executed",
+    "rejected": "Rejected",
+    "cancelled": "Cancelled"
+  },
+  "Login": {
+    "title": "Cash Flow Management System",
+    "description": "Sign in to access the dashboard",
+    "email": "Email",
+    "password": "Password",
+    "emailPlaceholder": "admin@system.com",
+    "passwordPlaceholder": "••••••••",
+    "signIn": "Sign In",
+    "signingIn": "Signing in...",
+    "loginFailed": "Login failed"
+  },
+  "Dashboard": {
+    "title": "Dashboard",
+    "totalOrders": "Total Orders",
+    "pending": "Pending",
+    "fundBalance": "Fund Balance",
+    "monthly": "Monthly Total"
+  },
+  "FundPage": {
+    "title": "Fund Balance",
+    "cardTitle": "Main Fund",
+    "lastUpdated": "Last updated"
+  },
+  "Orders": {
+    "title": "Orders",
+    "newOrder": "New Order",
+    "orderNumber": "Order Number",
+    "description": "Description",
+    "type": "Type",
+    "amount": "Amount",
+    "status": "Status",
+    "date": "Date",
+    "actions": "Actions"
+  },
+  "OrderDetail": {
+    "title": "Order Details",
+    "orderNumber": "Order Number",
+    "description": "Description",
+    "type": "Type",
+    "amount": "Amount",
+    "status": "Status",
+    "client": "Client",
+    "items": "Items",
+    "approve": "Approve",
+    "execute": "Execute"
+  },
+  "CreateOrder": {
+    "title": "New Order",
+    "orderInfo": "Order Information",
+    "orderType": "Order Type",
+    "selectType": "Select type",
+    "description": "Description",
+    "descriptionPlaceholder": "Order description (optional)",
+    "items": "Items",
+    "descriptionPlaceholderItem": "Description",
+    "quantity": "Qty",
+    "price": "Price",
+    "addItem": "Add Item",
+    "remove": "Remove",
+    "total": "Total",
+    "create": "Create Order",
+    "creating": "Creating..."
+  }
+}
