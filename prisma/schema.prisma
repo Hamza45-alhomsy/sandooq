@@ -79,6 +79,7 @@ model Order {
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
   documents    Document[]
+  notes        String?   @db.Text
   items        OrderItem[]
   approvedBy   User?        @relation("ApprovedOrders", fields: [approvedById], references: [id])
   executedBy   User?        @relation("ExecutedOrders", fields: [executedById], references: [id])

@@ -8,15 +8,17 @@ import { notFound } from "next/navigation";
 import { routing } from "@/i18n/routing";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { Toaster } from "@/components/ui/sonner";
+import { ThemeProvider } from "@/components/ThemeProvider";
 
+import "../globals.css";
 const inter = Inter({ subsets: ["latin"] });
 const tajawal = Tajawal({ subsets: ["arabic"], weight: ["400", "700"] });
 
 export const metadata: Metadata = {
-  title: "Cash Flow Management",
-  description: "Cash Flow Daily Management System",
+  title: "Cash Flow Management System",
+  description:
+    "Streamline your financial operations with a powerful, secure, and intuitive system designed for modern businesses.",
 };
-
 export function generateStaticParams() {
   return routing.locales.map((locale) => ({ locale }));
 }
@@ -45,13 +47,26 @@ export default async function LocaleLayout({
   const font = locale === "ar" ? tajawal.className : inter.className;
 
   return (
-    <div lang={locale} dir={locale === "ar" ? "rtl" : "ltr"} className={font}>
-      <NextIntlClientProvider messages={messages}>
-        <AuthProvider>
-          {children}
-          <Toaster />
-        </AuthProvider>
-      </NextIntlClientProvider>
-    </div>
+    <html
+      lang={locale}
+      dir={locale === "ar" ? "rtl" : "ltr"}
+      suppressHydrationWarning
+    >
+      <body className={font} suppressHydrationWarning>
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <NextIntlClientProvider messages={messages}>
+            <AuthProvider>
+              {children}
+              <Toaster />
+            </AuthProvider>
+          </NextIntlClientProvider>
+        </ThemeProvider>
+      </body>
+    </html>
   );
 }

@@ -1,5 +1,60 @@
 {
+  "Login": {
+    "title": "Cash Flow Management System",
+    "description": "Sign in to access the dashboard",
+    "email": "Email",
+    "password": "Password",
+    "emailPlaceholder": "admin@system.com",
+    "passwordPlaceholder": "••••••••",
+    "signIn": "Sign In",
+    "signingIn": "Signing in...",
+    "loginFailed": "Login failed",
+    "success": "Logged in successfully"
+  },
+  "SignUp": {
+    "title": "Create Account",
+    "description": "Sign up to start managing your cash flow",
+    "fullName": "Full Name",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "signUp": "Sign Up",
+    "signingUp": "Creating account...",
+    "success": "Account created successfully!",
+    "error": "Registration failed",
+    "alreadyHaveAccount": "Already have an account?",
+    "loginHere": "Log in here",
+    "passwordMismatch": "Passwords do not match"
+  },
+  "Landing": {
+    "heroCtaCreate": "Create Account",
+    "title": "Cash Flow Daily Management System",
+    "description": "Streamline your financial operations with a powerful, secure, and intuitive system designed for modern businesses.",
+    "navLogin": "Login",
+    "heroTitle": "Take Control of Your Cash Flow",
+    "heroSubtitle": "Track income, manage expenses, approve orders, and generate reports – all in one place.",
+    "heroCta": "Get Started",
+    "heroCtaLogin": "Sign In",
+    "featureTitle": "Everything you need to manage your finances",
+    "featureSubtitle": "Built for efficiency and designed for teams of all sizes",
+    "feature1Title": "Order Management",
+    "feature1Desc": "Create, approve, and execute financial orders with a streamlined workflow.",
+    "feature2Title": "Fund Tracking",
+    "feature2Desc": "Monitor your fund balance in real-time with full transaction history.",
+    "feature3Title": "Approval Workflow",
+    "feature3Desc": "Role-based permissions ensure that every transaction is reviewed and authorized.",
+    "feature4Title": "Document Management",
+    "feature4Desc": "Attach receipts, invoices, and supporting documents to every order.",
+    "footerText": "© 2026 Cash Flow Management. All rights reserved.",
+    "contactSales": "Contact Sales"
+  },
   "Common": {
+    "download": "Download",
+    "all": "All",
+    "from": "From",
+    "to": "To",
+    "clear": "Clear",
+    "search": "Search",
     "loading": "Loading...",
     "error": "Error",
     "back": "Back",
@@ -15,29 +70,31 @@
     "executeSuccess": "Order executed",
     "operationFailed": "Operation failed",
     "view": "View",
+    "viewAll": "View All",
     "pending": "Pending",
     "approved": "Approved",
     "executed": "Executed",
     "rejected": "Rejected",
-    "cancelled": "Cancelled"
-  },
-  "Login": {
-    "title": "Cash Flow Management System",
-    "description": "Sign in to access the dashboard",
-    "email": "Email",
-    "password": "Password",
-    "emailPlaceholder": "admin@system.com",
-    "passwordPlaceholder": "••••••••",
-    "signIn": "Sign In",
-    "signingIn": "Signing in...",
-    "loginFailed": "Login failed"
+    "cancelled": "Cancelled",
+    "save": "Save Changes",
+    "saving": "Saving..."
   },
   "Dashboard": {
     "title": "Dashboard",
     "totalOrders": "Total Orders",
     "pending": "Pending",
+    "approved": "Approved",
+    "executed": "Executed",
     "fundBalance": "Fund Balance",
-    "monthly": "Monthly Total"
+    "monthly": "Monthly Total",
+    "recentOrders": "Recent Orders",
+    "noRecentOrders": "No recent orders",
+    "orderNumber": "Order Number",
+    "client": "Client",
+    "amount": "Amount",
+    "status": "Status",
+    "date": "Date",
+    "actions": "Actions"
   },
   "FundPage": {
     "title": "Fund Balance",
@@ -53,9 +110,12 @@
     "amount": "Amount",
     "status": "Status",
     "date": "Date",
-    "actions": "Actions"
+    "actions": "Actions",
+    "client": "Client"
   },
   "OrderDetail": {
+    "reject": "Reject",
+    "cancelOrder": "Cancel Order",
     "title": "Order Details",
     "orderNumber": "Order Number",
     "description": "Description",
@@ -65,7 +125,20 @@
     "client": "Client",
     "items": "Items",
     "approve": "Approve",
-    "execute": "Execute"
+    "execute": "Execute",
+    "rejectDialog": {
+      "title": "Reject Order",
+      "reason": "Reason for rejection",
+      "reasonPlaceholder": "Enter reason (optional)",
+      "confirm": "Confirm Reject",
+      "cancel": "Cancel"
+    },
+    "cancelDialog": {
+      "title": "Cancel Order",
+      "description": "Are you sure you want to cancel this order? This action cannot be undone.",
+      "confirm": "Confirm Cancel",
+      "goBack": "Go Back"
+    }
   },
   "CreateOrder": {
     "title": "New Order",
@@ -83,5 +156,98 @@
     "total": "Total",
     "create": "Create Order",
     "creating": "Creating..."
+  },
+  "Sidebar": {
+    "title": "Cash Flow System",
+    "mainMenu": "Main Menu",
+    "dashboard": "Dashboard",
+    "orders": "Orders",
+    "fund": "Fund",
+    "users": "Users",
+    "audit": "Audit Log",
+    "settings": "Settings",
+    "logout": "Logout",
+    "profile": "Profile",
+    "darkMode": "Dark Mode",
+    "lightMode": "Light Mode"
+  },
+  "Profile": {
+    "title": "Profile",
+    "personalInfo": "Personal Information",
+    "updateDescription": "Update your personal details",
+    "email": "Email",
+    "fullName": "Full Name",
+    "phone": "Phone",
+    "role": "Role",
+    "emailDisabled": "Email cannot be changed",
+    "updateSuccess": "Profile updated successfully",
+    "updateError": "Failed to update profile"
+  },
+  "Users": {
+    "title": "User Management",
+    "newUser": "New User",
+    "name": "Full Name",
+    "email": "Email",
+    "role": "Role",
+    "status": "Status",
+    "active": "Active",
+    "inactive": "Inactive",
+    "actions": "Actions",
+    "create": "Create User",
+    "creating": "Creating...",
+    "edit": "Edit",
+    "delete": "Delete",
+    "confirmDelete": "Are you sure you want to delete this user?",
+    "success": "User created successfully",
+    "error": "Failed to create user"
+  },
+  "Audit": {
+    "title": "Audit Logs",
+    "user": "User",
+    "action": "Action",
+    "entity": "Entity",
+    "entityId": "Entity ID",
+    "date": "Date",
+    "ipAddress": "IP Address",
+    "noLogs": "No audit logs found"
+  },
+  "Settings": {
+    "title": "Settings",
+    "companyName": "Company Name",
+    "currency": "Currency",
+    "requireApproval": "Require Approval",
+    "save": "Save Changes",
+    "saving": "Saving...",
+    "success": "Settings updated successfully",
+    "error": "Failed to update settings"
+  },
+  "Documents": {
+    "title": "Documents",
+    "upload": "Upload Document",
+    "uploading": "Uploading...",
+    "noDocuments": "No documents uploaded",
+    "fileName": "File Name",
+    "uploadedAt": "Uploaded At",
+    "uploadedBy": "Uploaded By",
+    "uploadSuccess": "Document uploaded successfully",
+    "uploadError": "Failed to upload document",
+    "dragDrop": "Drag & drop files here, or click to select",
+    "fileTypes": "Supported: PDF, JPG, PNG"
+  },
+  "Investor": {
+    "title": "Investor Dashboard",
+    "incomeVsExpense": "Income vs Expense",
+    "fundBalanceTrend": "Fund Balance Trend",
+    "recentTransactions": "Recent Transactions",
+    "totalIncome": "Total Income",
+    "totalExpense": "Total Expense",
+    "netProfit": "Net Profit",
+    "transactionType": "Type",
+    "amount": "Amount",
+    "date": "Date",
+    "description": "Description",
+    "noTransactions": "No transactions found",
+    "income": "Income",
+    "expense": "Expense"
   }
 }

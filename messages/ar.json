@@ -1,5 +1,11 @@
 {
   "Common": {
+    "download": "تحميل",
+    "all": "الكل",
+    "from": "من",
+    "to": "إلى",
+    "clear": "مسح",
+    "search": "بحث",
     "loading": "جاري التحميل...",
     "error": "خطأ",
     "back": "رجوع",
@@ -15,11 +21,14 @@
     "executeSuccess": "تم تنفيذ الطلب",
     "operationFailed": "فشل العملية",
     "view": "عرض",
+    "viewAll": "عرض الكل",
     "pending": "قيد الانتظار",
     "approved": "موافق عليه",
     "executed": "منفذ",
     "rejected": "مرفوض",
-    "cancelled": "ملغي"
+    "cancelled": "ملغي",
+    "save": "حفظ التغييرات",
+    "saving": "جاري الحفظ..."
   },
   "Login": {
     "title": "نظام إدارة التدفق النقدي",
@@ -30,7 +39,40 @@
     "passwordPlaceholder": "••••••••",
     "signIn": "تسجيل الدخول",
     "signingIn": "جاري تسجيل الدخول...",
-    "loginFailed": "فشل تسجيل الدخول"
+    "loginFailed": "فشل تسجيل الدخول",
+    "success": "تم تسجيل الدخول بنجاح"
+  },
+  "SignUp": {
+    "title": "إنشاء حساب",
+    "description": "قم بالتسجيل لبدء إدارة التدفق النقدي الخاص بك",
+    "fullName": "الاسم الكامل",
+    "email": "البريد الإلكتروني",
+    "password": "كلمة المرور",
+    "confirmPassword": "تأكيد كلمة المرور",
+    "signUp": "تسجيل",
+    "signingUp": "جاري إنشاء الحساب...",
+    "success": "تم إنشاء الحساب بنجاح!",
+    "error": "فشل التسجيل",
+    "alreadyHaveAccount": "لديك حساب بالفعل؟",
+    "loginHere": "تسجيل الدخول هنا",
+    "passwordMismatch": "كلمة المرور غير متطابقة"
+  },
+  "Dashboard": {
+    "title": "لوحة التحكم",
+    "totalOrders": "إجمالي الطلبات",
+    "pending": "قيد الانتظار",
+    "approved": "موافق عليه",
+    "executed": "منفذ",
+    "fundBalance": "رصيد الصندوق",
+    "monthly": "شهرية",
+    "recentOrders": "آخر الطلبات",
+    "noRecentOrders": "لا توجد طلبات حديثة",
+    "orderNumber": "رقم الطلب",
+    "client": "العميل",
+    "amount": "المبلغ",
+    "status": "الحالة",
+    "date": "التاريخ",
+    "actions": "الإجراءات"
   },
   "FundPage": {
     "title": "رصيد الصندوق",
@@ -46,9 +88,12 @@
     "amount": "المبلغ",
     "status": "الحالة",
     "date": "التاريخ",
-    "actions": "الإجراءات"
+    "actions": "الإجراءات",
+    "client": "العميل"
   },
   "OrderDetail": {
+    "reject": "رفض",
+    "cancelOrder": "إلغاء الطلب",
     "title": "تفاصيل الطلب",
     "orderNumber": "رقم الطلب",
     "description": "العنوان",
@@ -58,7 +103,20 @@
     "client": "العميل",
     "items": "العناصر",
     "approve": "الموافقة",
-    "execute": "تنفيذ"
+    "execute": "تنفيذ",
+    "rejectDialog": {
+      "title": "رفض الطلب",
+      "reason": "سبب الرفض",
+      "reasonPlaceholder": "أدخل السبب (اختياري)",
+      "confirm": "تأكيد الرفض",
+      "cancel": "إلغاء"
+    },
+    "cancelDialog": {
+      "title": "إلغاء الطلب",
+      "description": "هل أنت متأكد من إلغاء هذا الطلب؟ لا يمكن التراجع عن هذا الإجراء.",
+      "confirm": "تأكيد الإلغاء",
+      "goBack": "رجوع"
+    }
   },
   "CreateOrder": {
     "title": "طلب جديد",
@@ -77,11 +135,119 @@
     "create": "إنشاء الطلب",
     "creating": "جاري الإنشاء..."
   },
-  "Dashboard": {
-    "title": "لوحة التحكم",
-    "totalOrders": "إجمالي الطلبات",
-    "pending": "قيد الانتظار",
-    "fundBalance": "رصيد الصندوق",
-    "monthly": "شهرية"
+  "Sidebar": {
+    "title": "نظام التدفق",
+    "mainMenu": "القائمة الرئيسية",
+    "dashboard": "لوحة التحكم",
+    "orders": "الطلبات",
+    "fund": "الصندوق",
+    "users": "المستخدمين",
+    "audit": "سجل التدقيق",
+    "settings": "الإعدادات",
+    "logout": "تسجيل الخروج",
+    "profile": "الملف الشخصي",
+    "darkMode": "الوضع الليلي",
+    "lightMode": "الوضع النهاري"
+  },
+  "Profile": {
+    "title": "الملف الشخصي",
+    "personalInfo": "المعلومات الشخصية",
+    "updateDescription": "قم بتحديث بياناتك الشخصية",
+    "email": "البريد الإلكتروني",
+    "fullName": "الاسم الكامل",
+    "phone": "رقم الهاتف",
+    "role": "الدور",
+    "emailDisabled": "لا يمكن تغيير البريد الإلكتروني",
+    "updateSuccess": "تم تحديث الملف الشخصي بنجاح",
+    "updateError": "فشل تحديث الملف الشخصي"
+  },
+  "Users": {
+    "title": "إدارة المستخدمين",
+    "newUser": "مستخدم جديد",
+    "name": "الاسم الكامل",
+    "email": "البريد الإلكتروني",
+    "role": "الدور",
+    "status": "الحالة",
+    "active": "نشط",
+    "inactive": "غير نشط",
+    "actions": "الإجراءات",
+    "create": "إنشاء مستخدم",
+    "creating": "جاري الإنشاء...",
+    "edit": "تعديل",
+    "delete": "حذف",
+    "confirmDelete": "هل أنت متأكد من حذف هذا المستخدم؟",
+    "success": "تم إنشاء المستخدم بنجاح",
+    "error": "فشل إنشاء المستخدم"
+  },
+  "Audit": {
+    "title": "سجل التدقيق",
+    "user": "المستخدم",
+    "action": "الإجراء",
+    "entity": "الكيان",
+    "entityId": "معرف الكيان",
+    "date": "التاريخ",
+    "ipAddress": "عنوان IP",
+    "noLogs": "لا توجد سجلات تدقيق"
+  },
+  "Settings": {
+    "title": "الإعدادات",
+    "companyName": "اسم الشركة",
+    "currency": "العملة",
+    "requireApproval": "طلب الموافقة",
+    "save": "حفظ التغييرات",
+    "saving": "جاري الحفظ...",
+    "success": "تم تحديث الإعدادات بنجاح",
+    "error": "فشل تحديث الإعدادات"
+  },
+  "Documents": {
+    "title": "المستندات",
+    "upload": "رفع مستند",
+    "uploading": "جاري الرفع...",
+    "noDocuments": "لا توجد مستندات مرفوعة",
+    "fileName": "اسم الملف",
+    "uploadedAt": "تاريخ الرفع",
+    "uploadedBy": "تم الرفع بواسطة",
+    "uploadSuccess": "تم رفع المستند بنجاح",
+    "uploadError": "فشل رفع المستند",
+    "dragDrop": "اسحب وأفلت الملفات هنا، أو انقر للاختيار",
+    "fileTypes": "الأنواع المدعومة: PDF, JPG, PNG"
+  },
+  "Investor": {
+    "title": "لوحة مستثمر",
+    "incomeVsExpense": "الإيرادات مقابل المصروفات",
+    "fundBalanceTrend": "اتجاه رصيد الصندوق",
+    "recentTransactions": "آخر المعاملات",
+    "totalIncome": "إجمالي الإيرادات",
+    "totalExpense": "إجمالي المصروفات",
+    "netProfit": "صافي الربح",
+    "transactionType": "النوع",
+    "amount": "المبلغ",
+    "date": "التاريخ",
+    "description": "الوصف",
+    "noTransactions": "لا توجد معاملات",
+    "income": "إيراد",
+    "expense": "مصروف"
+  },
+  "Landing": {
+    "heroCtaCreate": "إنشاء حساب",
+    "title": "نظام إدارة التدفق النقدي اليومي",
+    "description": "قم بتبسيط عملياتك المالية باستخدام نظام قوي وآمن وبديهي مصمم للشركات الحديثة.",
+    "navLogin": "تسجيل الدخول",
+    "heroTitle": "تحكم في تدفقك النقدي",
+    "heroSubtitle": "تتبع الإيرادات، وإدارة المصروفات، والموافقة على الطلبات، وإنشاء التقارير – كل ذلك في مكان واحد.",
+    "heroCta": "ابدأ الآن",
+    "heroCtaLogin": "تسجيل الدخول",
+    "featureTitle": "كل ما تحتاجه لإدارة أموالك",
+    "featureSubtitle": "مصمم للكفاءة ومُعد للفرق من جميع الأحجام",
+    "feature1Title": "إدارة الطلبات",
+    "feature1Desc": "قم بإنشاء الطلبات المالية والموافقة عليها وتنفيذها من خلال سير عمل مبسط.",
+    "feature2Title": "تتبع الصندوق",
+    "feature2Desc": "راقب رصيد صندوقك في الوقت الفعلي مع سجل معاملات كامل.",
+    "feature3Title": "سير عمل الموافقات",
+    "feature3Desc": "تضمن الأذونات المستندة إلى الأدوار مراجعة كل معاملة والموافقة عليها.",
+    "feature4Title": "إدارة المستندات",
+    "feature4Desc": "قم بإرفاق الإيصالات والفواتير والمستندات الداعمة لكل طلب.",
+    "footerText": "© 2026 نظام إدارة التدفق النقدي. جميع الحقوق محفوظة.",
+    "contactSales": "اتصل بالمبيعات"
   }
 }
