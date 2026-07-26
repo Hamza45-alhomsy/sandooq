@@ -1,10 +1,15 @@
 // src/components/LoginDialog.tsx
 "use client";
+import { sendPasswordResetEmail } from "firebase/auth";
 
 import { useState } from "react";
-import { useRouter } from "@/i18n/routing"; // ✅ Locale-aware router
+import { useRouter } from "@/i18n/routing";
 import { useTranslations } from "next-intl";
-import { signInWithEmailAndPassword } from "firebase/auth";
+import {
+  signInWithEmailAndPassword,
+  GoogleAuthProvider,
+  signInWithPopup,
+} from "firebase/auth";
 import { auth } from "@/lib/firebase/config";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +25,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { FcGoogle } from "react-icons/fc";
 
 interface LoginDialogProps {
   children: React.ReactNode;
@@ -52,6 +58,39 @@ export function LoginDialog({
   const [signupConfirmPassword, setSignupConfirmPassword] = useState("");
   const [signupLoading, setSignupLoading] = useState(false);
 
+  const handleForgotPassword = async () => {
+    // Get the email from the login form state
+    if (!loginEmail) {
+      toast.error("Please enter your email address first.");
+      return;
+    }
+
+    try {
+      await sendPasswordResetEmail(auth, loginEmail);
+      toast.success("Password reset email sent! Check your inbox.");
+    } catch (error: any) {
+      toast.error(error.message || "Failed to send reset email.");
+    }
+  };
+
+  // 🔥 Shared Google handler – works for both Login and Signup
+  const handleGoogleAuth = async () => {
+    const provider = new GoogleAuthProvider();
+    try {
+      const result = await signInWithPopup(auth, provider);
+      toast.success(
+        t("Login.googleSuccess") || "Signed in with Google successfully!",
+      );
+      setOpen(false);
+      router.push("/dashboard");
+    } catch (error: any) {
+      console.error(error);
+      toast.error(
+        error.message || t("Login.googleFailed") || "Google sign-in failed",
+      );
+    }
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginLoading(true);
@@ -75,7 +114,6 @@ export function LoginDialog({
     }
     setSignupLoading(true);
     try {
-      // 1. Register user in Firebase + MySQL
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/auth/register`,
         {
@@ -95,9 +133,7 @@ export function LoginDialog({
         return;
       }
 
-      // 2. ✅ Auto-login after successful registration
       await signInWithEmailAndPassword(auth, signupEmail, signupPassword);
-
       toast.success(t("SignUp.success"));
       setOpen(false);
       router.push("/dashboard");
@@ -124,6 +160,8 @@ export function LoginDialog({
             <TabsTrigger value="login">{t("Login.signIn")}</TabsTrigger>
             <TabsTrigger value="signup">{t("SignUp.title")}</TabsTrigger>
           </TabsList>
+
+          {/* ===== LOGIN TAB ===== */}
           <TabsContent value="login">
             <form onSubmit={handleLogin} className="space-y-4">
               <div className="space-y-2">
@@ -149,11 +187,47 @@ export function LoginDialog({
                   required
                 />
               </div>
+
+              {/* ✅ Forgot Password Button */}
+              <div className="flex items-center justify-end">
+                <Button
+                  type="button"
+                  variant="link"
+                  className="text-sm text-muted-foreground p-0 h-auto"
+                  onClick={handleForgotPassword}
+                >
+                  {t("Login.forgotPassword") || "Forgot Password?"}
+                </Button>
+              </div>
+
               <Button type="submit" className="w-full" disabled={loginLoading}>
                 {loginLoading ? t("Login.signingIn") : t("Login.signIn")}
               </Button>
             </form>
+
+            <div className="relative my-4">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">
+                  {t("Login.or") || "Or continue with"}
+                </span>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full gap-2"
+              onClick={handleGoogleAuth}
+            >
+              <FcGoogle className="h-5 w-5" />
+              {t("Login.googleSignIn") || "Sign in with Google"}
+            </Button>
           </TabsContent>
+
+          {/* ===== SIGNUP TAB ===== */}
           <TabsContent value="signup">
             <form onSubmit={handleSignup} className="space-y-4">
               <div className="space-y-2">
@@ -209,6 +283,27 @@ export function LoginDialog({
                 {signupLoading ? t("SignUp.signingUp") : t("SignUp.signUp")}
               </Button>
             </form>
+
+            <div className="relative my-4">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">
+                  {t("SignUp.or") || "Or sign up with"}
+                </span>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full gap-2"
+              onClick={handleGoogleAuth}
+            >
+              <FcGoogle className="h-5 w-5" />
+              {t("SignUp.googleSignUp") || "Sign up with Google"}
+            </Button>
           </TabsContent>
         </Tabs>
       </DialogContent>

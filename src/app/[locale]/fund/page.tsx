@@ -1,5 +1,6 @@
 // src/app/fund/page.tsx
 "use client";
+import { useSettings } from "@/hooks/useSettings";
 
 import useSWR from "swr";
 import { useTranslations } from "next-intl";
@@ -8,6 +9,8 @@ import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function FundPage() {
+  const { currency } = useSettings();
+
   const t = useTranslations();
   const { data, error, isLoading } = useSWR("/api/fund", fetcher);
 
@@ -35,7 +38,7 @@ export default function FundPage() {
         </CardHeader>
         <CardContent>
           <p className="text-4xl font-bold text-primary">
-            {data?.currentBalance?.toLocaleString()} {data?.currency || "SYP"}
+            {data?.currentBalance?.toLocaleString()} {currency || "SYP"}
           </p>
           <p className="text-sm text-muted-foreground">
             {t("FundPage.lastUpdated")}:{" "}

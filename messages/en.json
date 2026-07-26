@@ -9,7 +9,12 @@
     "signIn": "Sign In",
     "signingIn": "Signing in...",
     "loginFailed": "Login failed",
-    "success": "Logged in successfully"
+    "success": "Logged in successfully",
+    "or": "Or continue with",
+    "googleSignIn": "Sign in with Google",
+    "googleSuccess": "Signed in with Google successfully!",
+    "googleFailed": "Google sign-in failed",
+    "forgotPassword": "Forgot Password?"
   },
   "SignUp": {
     "title": "Create Account",
@@ -24,7 +29,9 @@
     "error": "Registration failed",
     "alreadyHaveAccount": "Already have an account?",
     "loginHere": "Log in here",
-    "passwordMismatch": "Passwords do not match"
+    "passwordMismatch": "Passwords do not match",
+    "or": "Or sign up with",
+    "googleSignUp": "Sign up with Google"
   },
   "Landing": {
     "heroCtaCreate": "Create Account",
@@ -114,6 +121,8 @@
     "client": "Client"
   },
   "OrderDetail": {
+    "rejectionReason": "Rejection Reason",
+    "editOrder": "Edit Order",
     "reject": "Reject",
     "cancelOrder": "Cancel Order",
     "title": "Order Details",
@@ -169,7 +178,8 @@
     "logout": "Logout",
     "profile": "Profile",
     "darkMode": "Dark Mode",
-    "lightMode": "Light Mode"
+    "lightMode": "Light Mode",
+    "investorDashboard": "Investor Dashboard"
   },
   "Profile": {
     "title": "Profile",
@@ -181,9 +191,22 @@
     "role": "Role",
     "emailDisabled": "Email cannot be changed",
     "updateSuccess": "Profile updated successfully",
-    "updateError": "Failed to update profile"
+    "updateError": "Failed to update profile",
+    "changePassword": "Change Password",
+    "changePasswordDesc": "Update your password",
+    "currentPassword": "Current Password",
+    "newPassword": "New Password",
+    "confirmNewPassword": "Confirm New Password",
+    "updatePassword": "Update Password",
+    "updatingPassword": "Updating...",
+    "passwordMismatch": "Passwords do not match",
+    "passwordTooShort": "Password must be at least 6 characters",
+    "passwordSuccess": "Password changed successfully!",
+    "passwordError": "Failed to change password",
+    "wrongPassword": "Current password is incorrect"
   },
   "Users": {
+    "phone": "Phone",
     "title": "User Management",
     "newUser": "New User",
     "name": "Full Name",
@@ -199,23 +222,53 @@
     "delete": "Delete",
     "confirmDelete": "Are you sure you want to delete this user?",
     "success": "User created successfully",
-    "error": "Failed to create user"
+    "error": "Failed to create user",
+    "editRole": "Edit Role",
+    "editRoleDialog": {
+      "title": "Edit User Role",
+      "user": "User",
+      "role": "Role",
+      "save": "Save Changes",
+      "cancel": "Cancel",
+      "saving": "Saving..."
+    },
+    "roles": {
+      "admin": "Admin",
+      "investor": "Investor",
+      "client": "Client"
+    }
   },
   "Audit": {
     "title": "Audit Logs",
     "user": "User",
     "action": "Action",
     "entity": "Entity",
-    "entityId": "Entity ID",
+    "recordId": "Record ID",
     "date": "Date",
-    "ipAddress": "IP Address",
-    "noLogs": "No audit logs found"
+    "search": "Search...",
+    "noLogs": "No audit logs found",
+    "noResults": "No logs match your search",
+    "actions": {
+      "login": "Login",
+      "logout": "Logout",
+      "createOrder": "Create Order",
+      "updateOrder": "Update Order",
+      "approveOrder": "Approve Order",
+      "executeOrder": "Execute Order",
+      "rejectOrder": "Reject Order",
+      "cancelOrder": "Cancel Order",
+      "createUser": "Create User",
+      "updateUserRole": "Update User Role",
+      "updateProfile": "Update Profile",
+      "uploadDocument": "Upload Document",
+      "updateSettings": "Update Settings",
+      "register": "Register"
+    }
   },
   "Settings": {
     "title": "Settings",
     "companyName": "Company Name",
     "currency": "Currency",
-    "requireApproval": "Require Approval",
     "save": "Save Changes",
     "saving": "Saving...",
     "success": "Settings updated successfully",
@@ -235,6 +288,7 @@
     "fileTypes": "Supported: PDF, JPG, PNG"
   },
   "Investor": {
+    "fundBalanceNote": "Incomes - Expenses",
     "title": "Investor Dashboard",
     "incomeVsExpense": "Income vs Expense",
     "fundBalanceTrend": "Fund Balance Trend",

@@ -1,5 +1,6 @@
 // src/app/[locale]/dashboard/page.tsx
 "use client";
+import { useSettings } from "@/hooks/useSettings";
 
 import { useTranslations } from "next-intl";
 import useSWR from "swr";
@@ -20,6 +21,8 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function DashboardPage() {
+  const { currency } = useSettings();
+
   const t = useTranslations();
   const { user } = useAuth();
   const { data, error, isLoading } = useSWR("/api/dashboard/stats", fetcher);
@@ -63,7 +66,6 @@ export default function DashboardPage() {
     cancelled: t("Common.cancelled"),
   };
 
-  // ✅ Check if the user can view fund data (based on whether the API returned it)
   const canViewFund = stats.fundBalance !== undefined;
 
   return (
@@ -122,7 +124,6 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* 🔒 Fund Balance – only visible to admins/investors */}
         {canViewFund && (
           <Card>
             <CardHeader className="pb-2">
@@ -134,7 +135,7 @@ export default function DashboardPage() {
               <p className="text-2xl font-bold text-primary">
                 {stats.fundBalance?.toLocaleString() || 0}{" "}
                 <span className="text-sm font-normal text-muted-foreground">
-                  SYP
+                  {currency}
                 </span>
               </p>
             </CardContent>
@@ -152,7 +153,7 @@ export default function DashboardPage() {
               <p className="text-2xl font-bold text-purple-600">
                 {stats.monthlyTotal?.toLocaleString() || 0}{" "}
                 <span className="text-sm font-normal text-muted-foreground">
-                  SYP
+                  {currency}
                 </span>
               </p>
             </CardContent>
@@ -194,7 +195,7 @@ export default function DashboardPage() {
                     </TableCell>
                     <TableCell>{order.user?.fullName || "—"}</TableCell>
                     <TableCell>
-                      {order.totalAmount?.toLocaleString()} SYP
+                      {order.totalAmount?.toLocaleString()} {currency}
                     </TableCell>
                     <TableCell>
                       <Badge
@@ -208,7 +209,8 @@ export default function DashboardPage() {
                     </TableCell>
                     <TableCell>
                       <Link href={`/orders/${order.id}`}>
-                        <Button variant="ghost" size="sm">
+                        {/* ✅ Changed from "ghost" to "outline" for better visibility */}
+                        <Button variant="outline" size="sm">
                           {t("Common.view")}
                         </Button>
                       </Link>

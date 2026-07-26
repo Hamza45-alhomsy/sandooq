@@ -1,5 +1,6 @@
 // src/app/[locale]/orders/create/page.tsx
 "use client";
+import { useSettings } from "@/hooks/useSettings";
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
@@ -67,6 +68,7 @@ export default function CreateOrderPage() {
   const [loading, setLoading] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<UploadFile[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { currency } = useSettings();
 
   const {
     register,
@@ -97,13 +99,11 @@ export default function CreateOrderPage() {
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
 
-      // Validate file size
       if (file.size > MAX_FILE_SIZE) {
         toast.error(`${file.name} exceeds 5MB limit`);
         continue;
       }
 
-      // Validate file type
       if (!ACCEPTED_FILE_TYPES.includes(file.type)) {
         toast.error(`${file.name} is not a supported file type`);
         continue;
@@ -127,7 +127,6 @@ export default function CreateOrderPage() {
   const removeFile = (index: number) => {
     setUploadedFiles((prev) => {
       const newFiles = [...prev];
-      // Revoke the object URL to prevent memory leaks
       URL.revokeObjectURL(newFiles[index].preview);
       newFiles.splice(index, 1);
       return newFiles;
@@ -137,7 +136,6 @@ export default function CreateOrderPage() {
   const onSubmit = async (data: OrderFormData) => {
     setLoading(true);
     try {
-      // 1. Create the order
       const orderResponse = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/orders/create`,
         {
@@ -159,7 +157,6 @@ export default function CreateOrderPage() {
 
       const order = await orderResponse.json();
 
-      // 2. Upload all documents
       if (uploadedFiles.length > 0) {
         let uploadErrors = 0;
         for (const uploadedFile of uploadedFiles) {
@@ -264,65 +261,104 @@ export default function CreateOrderPage() {
                 />
               </div>
 
-              {/* Items */}
+              {/* ===== ITEMS SECTION ===== */}
               <div>
                 <Label className="text-lg font-semibold">
                   {t("CreateOrder.items")}
                 </Label>
+
                 {fields.map((field, index) => (
-                  <div key={field.id} className="flex gap-2 mt-2 items-end">
-                    <div className="flex-1">
-                      <Input
-                        {...register(`items.${index}.description`)}
-                        placeholder={t(
-                          "CreateOrder.descriptionPlaceholderItem",
+                  <div
+                    key={field.id}
+                    className="mt-4 border-t pt-4 first:border-t-0 first:pt-0"
+                  >
+                    <div className="flex flex-col gap-3">
+                      {/* Description */}
+                      <div>
+                        <Label
+                          htmlFor={`items.${index}.description`}
+                          className="text-sm"
+                        >
+                          {t("CreateOrder.description")}
+                        </Label>
+                        <Input
+                          id={`items.${index}.description`}
+                          {...register(`items.${index}.description`)}
+                          placeholder={t(
+                            "CreateOrder.descriptionPlaceholderItem",
+                          )}
+                        />
+                        {errors.items?.[index]?.description && (
+                          <p className="text-sm text-red-500">
+                            {errors.items[index]?.description?.message}
+                          </p>
                         )}
-                      />
-                      {errors.items?.[index]?.description && (
-                        <p className="text-sm text-red-500">
-                          {errors.items[index]?.description?.message}
-                        </p>
-                      )}
+                      </div>
+
+                      <div className="flex gap-3">
+                        {/* Quantity */}
+                        <div className="flex-1">
+                          <Label
+                            htmlFor={`items.${index}.quantity`}
+                            className="text-sm"
+                          >
+                            {t("CreateOrder.quantity")}
+                          </Label>
+                          <Input
+                            id={`items.${index}.quantity`}
+                            {...register(`items.${index}.quantity`, {
+                              valueAsNumber: true,
+                            })}
+                            type="number"
+                            placeholder={t("CreateOrder.quantity")}
+                          />
+                          {errors.items?.[index]?.quantity && (
+                            <p className="text-sm text-red-500">
+                              {errors.items[index]?.quantity?.message}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Unit Price */}
+                        <div className="flex-1">
+                          <Label
+                            htmlFor={`items.${index}.unitPrice`}
+                            className="text-sm"
+                          >
+                            {t("CreateOrder.price")} ({currency})
+                          </Label>
+                          <Input
+                            id={`items.${index}.unitPrice`}
+                            {...register(`items.${index}.unitPrice`, {
+                              valueAsNumber: true,
+                            })}
+                            type="number"
+                            step="0.01"
+                            placeholder={t("CreateOrder.price")}
+                          />
+                          {errors.items?.[index]?.unitPrice && (
+                            <p className="text-sm text-red-500">
+                              {errors.items[index]?.unitPrice?.message}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Remove Button */}
+                        <div className="flex items-end">
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => remove(index)}
+                          >
+                            {t("CreateOrder.remove")}
+                          </Button>
+                        </div>
+                      </div>
                     </div>
-                    <div className="w-20">
-                      <Input
-                        {...register(`items.${index}.quantity`, {
-                          valueAsNumber: true,
-                        })}
-                        type="number"
-                        placeholder={t("CreateOrder.quantity")}
-                      />
-                      {errors.items?.[index]?.quantity && (
-                        <p className="text-sm text-red-500">
-                          {errors.items[index]?.quantity?.message}
-                        </p>
-                      )}
-                    </div>
-                    <div className="w-28">
-                      <Input
-                        {...register(`items.${index}.unitPrice`, {
-                          valueAsNumber: true,
-                        })}
-                        type="number"
-                        step="0.01"
-                        placeholder={t("CreateOrder.price")}
-                      />
-                      {errors.items?.[index]?.unitPrice && (
-                        <p className="text-sm text-red-500">
-                          {errors.items[index]?.unitPrice?.message}
-                        </p>
-                      )}
-                    </div>
-                    <Button
-                      type="button"
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => remove(index)}
-                    >
-                      {t("CreateOrder.remove")}
-                    </Button>
                   </div>
                 ))}
+
                 <Button
                   type="button"
                   variant="outline"
@@ -336,13 +372,12 @@ export default function CreateOrderPage() {
                 </Button>
               </div>
 
-              {/* 📤 Document Upload Section */}
+              {/* Document Upload Section */}
               <div className="pt-4 border-t">
                 <Label className="text-lg font-semibold">
                   {t("Documents.title")}
                 </Label>
 
-                {/* Drop Zone */}
                 <div
                   className={cn(
                     "mt-2 border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors",
@@ -367,7 +402,6 @@ export default function CreateOrderPage() {
                   />
                 </div>
 
-                {/* Uploaded Files Preview */}
                 {uploadedFiles.length > 0 && (
                   <div className="mt-4 space-y-2">
                     <p className="text-sm font-medium">
@@ -408,7 +442,7 @@ export default function CreateOrderPage() {
               <div className="pt-4 border-t">
                 <p className="text-lg font-bold">
                   {t("CreateOrder.total")}: {totalAmount.toLocaleString()}{" "}
-                  {t("Common.syp")}
+                  {currency}
                 </p>
                 {uploadedFiles.length > 0 && (
                   <p className="text-sm text-muted-foreground">

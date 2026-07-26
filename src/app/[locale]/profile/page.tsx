@@ -16,6 +16,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { toast } from "sonner";
+import {
+  updatePassword,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
+} from "firebase/auth";
+import { auth } from "@/lib/firebase/config";
 
 export default function ProfilePage() {
   const t = useTranslations();
@@ -23,6 +29,12 @@ export default function ProfilePage() {
   const [fullName, setFullName] = useState(user?.fullName || "");
   const [phone, setPhone] = useState(user?.phone || "");
   const [loading, setLoading] = useState(false);
+
+  // Change Password state
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [passwordLoading, setPasswordLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -47,8 +59,6 @@ export default function ProfilePage() {
         toast.success(
           t("Profile.updateSuccess") || "Profile updated successfully",
         );
-        // Update the user in AuthContext? We'll just reload the page or let the user know.
-        // For simplicity, we can refresh the page or just show a success message.
         setTimeout(() => window.location.reload(), 500);
       } else {
         const error = await response.json();
@@ -63,12 +73,67 @@ export default function ProfilePage() {
     }
   };
 
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // Validate password
+    if (newPassword !== confirmNewPassword) {
+      toast.error(t("Profile.passwordMismatch") || "Passwords do not match");
+      return;
+    }
+    if (newPassword.length < 6) {
+      toast.error(
+        t("Profile.passwordTooShort") ||
+          "Password must be at least 6 characters",
+      );
+      return;
+    }
+
+    setPasswordLoading(true);
+
+    try {
+      // 1. Re-authenticate the user (security step)
+      const credential = EmailAuthProvider.credential(
+        auth.currentUser!.email!,
+        currentPassword,
+      );
+      await reauthenticateWithCredential(auth.currentUser!, credential);
+
+      // 2. Update the password
+      await updatePassword(auth.currentUser!, newPassword);
+
+      toast.success(
+        t("Profile.passwordSuccess") || "Password changed successfully!",
+      );
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmNewPassword("");
+    } catch (error: any) {
+      console.error(error);
+      if (error.code === "auth/wrong-password") {
+        toast.error(
+          t("Profile.wrongPassword") || "Current password is incorrect",
+        );
+      } else {
+        toast.error(
+          error.message ||
+            t("Profile.passwordError") ||
+            "Failed to change password",
+        );
+      }
+    } finally {
+      setPasswordLoading(false);
+    }
+  };
+
   return (
     <MainLayout>
-      <div className="max-w-2xl mx-auto">
+      <div className="max-w-2xl mx-auto space-y-6">
         <h1 className="mb-6 text-2xl font-bold">
           {t("Profile.title") || "Profile"}
         </h1>
+
+        {/* ===== UPDATE PROFILE CARD ===== */}
         <Card>
           <CardHeader>
             <CardTitle>
@@ -123,6 +188,74 @@ export default function ProfilePage() {
                 {loading
                   ? t("Common.saving") || "Saving..."
                   : t("Common.save") || "Save Changes"}
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+
+        {/* ===== CHANGE PASSWORD CARD ===== */}
+        <Card>
+          <CardHeader>
+            <CardTitle>
+              {t("Profile.changePassword") || "Change Password"}
+            </CardTitle>
+            <CardDescription>
+              {t("Profile.changePasswordDesc") || "Update your password"}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleChangePassword} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="current-password">
+                  {t("Profile.currentPassword") || "Current Password"}
+                </Label>
+                <Input
+                  id="current-password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="new-password">
+                  {t("Profile.newPassword") || "New Password"}
+                </Label>
+                <Input
+                  id="new-password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  required
+                  minLength={6}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="confirm-new-password">
+                  {t("Profile.confirmNewPassword") || "Confirm New Password"}
+                </Label>
+                <Input
+                  id="confirm-new-password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={confirmNewPassword}
+                  onChange={(e) => setConfirmNewPassword(e.target.value)}
+                  required
+                />
+              </div>
+
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={passwordLoading}
+              >
+                {passwordLoading
+                  ? t("Profile.updatingPassword") || "Updating..."
+                  : t("Profile.updatePassword") || "Update Password"}
               </Button>
             </form>
           </CardContent>

@@ -30,7 +30,8 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts",
     "server.js",
-    "src/backend/server.js"
+    "src/backend/server.js",
+    "src/backend/repositories/clientRepository.js"
   ],
   "exclude": ["node_modules"]
 }

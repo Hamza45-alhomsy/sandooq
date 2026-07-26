@@ -1,6 +1,6 @@
-// src/components/layout/AppSidebar.tsx
 "use client";
 import { useRouter } from "@/i18n/routing";
+import { useSettings } from "@/hooks/useSettings";
 
 import {
   Sidebar,
@@ -30,6 +30,7 @@ import {
   Moon,
   Sun,
   User,
+  ChevronDown,
 } from "lucide-react";
 import { useTheme } from "@teispace/next-themes";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -45,6 +46,7 @@ import {
 
 export function AppSidebar() {
   const router = useRouter();
+  const { companyName } = useSettings();
 
   const { user, logout } = useAuth();
   const pathname = usePathname();
@@ -55,7 +57,6 @@ export function AppSidebar() {
   const side = locale === "ar" ? "right" : "left";
   const userInitial = user?.fullName?.charAt(0)?.toUpperCase() || "?";
 
-  // ✅ Navigation items (conditional)
   const navItems = [
     { href: "/dashboard", label: t("dashboard"), icon: LayoutDashboard },
     { href: "/orders", label: t("orders"), icon: Package },
@@ -71,7 +72,7 @@ export function AppSidebar() {
   ) {
     navItems.push({
       href: "/investor",
-      label: "Investor Dashboard",
+      label: t("investorDashboard"), // ✅ Now translated
       icon: LayoutDashboard,
     });
   }
@@ -104,7 +105,7 @@ export function AppSidebar() {
     >
       <SidebarHeader className="border-b p-4">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="text-xl font-bold truncate">💰 {t("title")}</span>
+          <span className="text-xl font-bold truncate">💰 {companyName}</span>
         </div>
       </SidebarHeader>
 
@@ -135,7 +136,6 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="border-t p-4 space-y-2">
-        {/* 👤 User Profile – using render prop to avoid asChild */}
         <DropdownMenu>
           <DropdownMenuTrigger
             render={
@@ -147,7 +147,10 @@ export function AppSidebar() {
                   <AvatarImage alt={user?.fullName} />
                   <AvatarFallback>{userInitial}</AvatarFallback>
                 </Avatar>
-                <span className="truncate">{user?.fullName}</span>
+                <span className="truncate flex-1 text-left">
+                  {user?.fullName}
+                </span>
+                <ChevronDown className="h-4 w-4 text-muted-foreground" />
               </Button>
             }
           />
@@ -170,25 +173,19 @@ export function AppSidebar() {
                   </Link>
                 }
               />
-              <DropdownMenuItem onClick={logout}>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full gap-2"
-                  onClick={async () => {
-                    await logout();
-                    router.push("/");
-                  }}
-                >
-                  <LogOut className="h-4 w-4" />
-                  <span>{t("logout")}</span>
-                </Button>
+              <DropdownMenuItem
+                onClick={async () => {
+                  await logout();
+                  router.push("/");
+                }}
+              >
+                <LogOut className="mr-2 h-4 w-4" />
+                {t("logout")}
               </DropdownMenuItem>
             </DropdownMenuGroup>
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {/* 🌙 Night Mode Toggle */}
         <Button
           variant="outline"
           size="sm"
@@ -208,7 +205,6 @@ export function AppSidebar() {
           )}
         </Button>
 
-        {/* Language Toggle */}
         <LanguageToggle />
       </SidebarFooter>
     </Sidebar>

@@ -1,6 +1,7 @@
 // src/app/[locale]/orders/[id]/page.tsx
 "use client";
 
+import { useSettings } from "@/hooks/useSettings";
 import { useState } from "react";
 import useSWR from "swr";
 import { useParams, useRouter } from "next/navigation";
@@ -22,7 +23,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { DocumentUpload } from "@/components/orders/DocumentUpload";
-import { Download, File, Trash2, XCircle } from "lucide-react";
+import { Download, File, Trash2, XCircle, Pencil } from "lucide-react";
 
 export default function OrderDetailPage() {
   const t = useTranslations();
@@ -30,6 +31,7 @@ export default function OrderDetailPage() {
   const router = useRouter();
   const { token, user } = useAuth();
   const { data: order, mutate } = useSWR(`/api/orders/${id}`, fetcher);
+  const { currency } = useSettings();
 
   // Reject dialog
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
@@ -176,7 +178,7 @@ export default function OrderDetailPage() {
               </p>
               <p>
                 <strong>{t("OrderDetail.amount")}:</strong>{" "}
-                {order.totalAmount.toLocaleString()} {t("Common.syp")}
+                {order.totalAmount.toLocaleString()} {currency}
               </p>
               <p>
                 <strong>{t("OrderDetail.status")}:</strong>{" "}
@@ -203,12 +205,19 @@ export default function OrderDetailPage() {
                   <span>{item.description}</span>
                   <span>
                     {item.quantity} × {item.unitPrice} = {item.totalPrice}{" "}
-                    {t("Common.syp")}
+                    {currency}
                   </span>
                 </div>
               ))}
             </CardContent>
           </Card>
+
+          {/* Rejection Reason – only if rejected */}
+          {order.status === "rejected" && order.notes && (
+            <div className="rounded-md bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/20 dark:text-red-400">
+              <strong>{t("OrderDetail.rejectionReason")}:</strong> {order.notes}
+            </div>
+          )}
 
           {/* Documents Section */}
           <Card>
@@ -228,18 +237,24 @@ export default function OrderDetailPage() {
                     >
                       <div className="flex items-center gap-2">
                         <File className="h-4 w-4 text-muted-foreground" />
-                        <span>{doc.fileName}</span>
+                        <span className="text-sm font-medium">
+                          {doc.fileName}
+                        </span>
                       </div>
-                      <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                        <span>
-                          {new Date(doc.uploadedAt).toLocaleDateString()}
+                      <div className="flex items-center gap-4 text-sm">
+                        <span className="text-muted-foreground">
+                          {new Date(doc.createdAt).toLocaleDateString()}
                         </span>
                         <a
                           href={`${process.env.NEXT_PUBLIC_API_URL}${doc.fileUrl}`}
                           target="_blank"
                           rel="noopener noreferrer"
+                          className="flex items-center"
                         >
-                          <Download className="h-4 w-4" />
+                          <Button variant="outline" size="sm" className="gap-2">
+                            <Download className="h-4 w-4" />
+                            {t("Common.download") || "Download"}
+                          </Button>
                         </a>
                       </div>
                     </div>
@@ -290,6 +305,16 @@ export default function OrderDetailPage() {
               >
                 <Trash2 className="mr-2 h-4 w-4" />
                 Cancel Order
+              </Button>
+            )}
+            {isOwner && order.status === "pending" && (
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => router.push(`/orders/${order.id}/edit`)}
+              >
+                <Pencil className="mr-2 h-4 w-4" />
+                {t("OrderDetail.editOrder")}
               </Button>
             )}
           </div>

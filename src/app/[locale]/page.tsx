@@ -1,4 +1,5 @@
 "use client";
+import { useSettings } from "@/hooks/useSettings";
 
 import { useTranslations } from "next-intl";
 import { LanguageToggle } from "@/components/LanguageToggle";
@@ -22,6 +23,7 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 
 export default function LandingPage() {
   const t = useTranslations("Landing");
+  const { companyName, isLoading: settingsLoading } = useSettings();
 
   const features = [
     {
@@ -52,7 +54,7 @@ export default function LandingPage() {
       <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-backdrop-blur:bg-background/60">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
           <div className="flex items-center gap-2">
-            <span className="text-xl font-bold">💰 {t("title")}</span>
+            <span className="text-xl font-bold"> {companyName}</span>
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />

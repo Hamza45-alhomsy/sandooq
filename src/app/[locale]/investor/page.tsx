@@ -20,10 +20,28 @@ import {
 } from "recharts";
 import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
+import { useSettings } from "@/hooks/useSettings";
+
+// Custom Tooltip for Area Chart
+const CustomTooltip = ({ active, payload, label }: any) => {
+  const { currency } = useSettings();
+  if (active && payload && payload.length) {
+    return (
+      <div className="rounded-md border bg-background p-3 shadow-md">
+        <p className="text-sm font-medium">{label}</p>
+        <p className="text-sm text-muted-foreground">
+          Cumulative Net: {payload[0].value.toLocaleString()} {currency}
+        </p>
+      </div>
+    );
+  }
+  return null;
+};
 
 export default function InvestorPage() {
   const t = useTranslations("Investor");
-  const tCommon = useTranslations("Common"); // ✅ Separate hook for Common
+  const tCommon = useTranslations("Common");
+  const { currency } = useSettings();
 
   const { user } = useAuth();
   const { data: orders, isLoading: ordersLoading } = useSWR(
@@ -57,22 +75,23 @@ export default function InvestorPage() {
     );
   }
 
-  // Calculate totals
+  // Only executed orders
+  const executedOrders =
+    orders?.filter((o: any) => o.status === "executed") || [];
+
   const totalIncome =
-    orders
-      ?.filter((o: any) => o.type === "income")
+    executedOrders
+      .filter((o: any) => o.type === "income")
       .reduce((sum: number, o: any) => sum + o.totalAmount, 0) || 0;
 
   const totalExpense =
-    orders
-      ?.filter((o: any) => o.type === "expense")
+    executedOrders
+      .filter((o: any) => o.type === "expense")
       .reduce((sum: number, o: any) => sum + o.totalAmount, 0) || 0;
 
-  const netProfit = totalIncome - totalExpense;
-
-  // Prepare income vs expense data for bar chart
+  // Monthly income vs expense (only executed)
   const monthlyData =
-    orders?.reduce((acc: any[], order: any) => {
+    executedOrders.reduce((acc: any[], order: any) => {
       const month = new Date(order.createdAt).toLocaleDateString("en-US", {
         month: "short",
       });
@@ -90,38 +109,33 @@ export default function InvestorPage() {
       return acc;
     }, []) || [];
 
-  // Fund balance trend – prepare data points
+  // ✅ Correct cumulative net over time (starting from 0)
   const balanceTrend =
-    orders
-      ?.filter((o: any) => o.status === "executed")
+    executedOrders
       .sort(
         (a: any, b: any) =>
           new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
       )
       .reduce((acc: any[], order: any) => {
-        const prevBalance =
-          acc.length > 0
-            ? acc[acc.length - 1].balance
-            : fund?.currentBalance || 0;
-        const newBalance =
-          order.type === "income"
-            ? prevBalance + order.totalAmount
-            : prevBalance - order.totalAmount;
+        const prevNet = acc.length > 0 ? acc[acc.length - 1].net : 0;
+        const net =
+          prevNet +
+          (order.type === "income" ? order.totalAmount : -order.totalAmount);
         acc.push({
           date: new Date(order.createdAt).toLocaleDateString("en-US", {
             month: "short",
             day: "numeric",
           }),
-          balance: newBalance,
+          net: net,
         });
         return acc;
       }, []) || [];
 
-  // If no transactions, show current balance as a single point
-  if (balanceTrend.length === 0 && fund) {
+  // If no transactions, show a single point with 0 (or current balance)
+  if (balanceTrend.length === 0) {
     balanceTrend.push({
       date: "Today",
-      balance: fund.currentBalance || 0,
+      net: 0,
     });
   }
 
@@ -130,7 +144,7 @@ export default function InvestorPage() {
       <h1 className="mb-6 text-2xl font-bold">{t("title")}</h1>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 mb-6">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 mb-6">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-green-600">
@@ -139,7 +153,7 @@ export default function InvestorPage() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-green-600">
-              {totalIncome.toLocaleString()} SYP
+              {totalIncome.toLocaleString()} {currency}
             </p>
           </CardContent>
         </Card>
@@ -152,22 +166,7 @@ export default function InvestorPage() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-red-600">
-              {totalExpense.toLocaleString()} SYP
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-blue-600">
-              {t("netProfit")}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p
-              className={`text-2xl font-bold ${netProfit >= 0 ? "text-blue-600" : "text-red-600"}`}
-            >
-              {netProfit.toLocaleString()} SYP
+              {totalExpense.toLocaleString()} {currency}
             </p>
           </CardContent>
         </Card>
@@ -180,13 +179,16 @@ export default function InvestorPage() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-primary">
-              {fund?.currentBalance?.toLocaleString() || 0} SYP
+              {(fund?.currentBalance || 0).toLocaleString()} {currency}
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {t("fundBalanceNote") || "Incomes - Expenses"}
             </p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Charts Grid */}
+      {/* Charts */}
       <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
         <Card>
           <CardHeader>
@@ -220,10 +222,10 @@ export default function InvestorPage() {
                   <CartesianGrid strokeDasharray="3 3" />
                   <XAxis dataKey="date" />
                   <YAxis />
-                  <Tooltip />
+                  <Tooltip content={<CustomTooltip />} />
                   <Area
                     type="monotone"
-                    dataKey="balance"
+                    dataKey="net"
                     stroke="#8884d8"
                     fill="#8884d8"
                     fillOpacity={0.3}
@@ -242,41 +244,38 @@ export default function InvestorPage() {
             <CardTitle>{t("recentTransactions")}</CardTitle>
           </CardHeader>
           <CardContent>
-            {orders?.filter((o: any) => o.status === "executed").length > 0 ? (
+            {executedOrders.length > 0 ? (
               <div className="space-y-2">
-                {orders
-                  ?.filter((o: any) => o.status === "executed")
-                  .slice(0, 10)
-                  .map((order: any) => (
-                    <div
-                      key={order.id}
-                      className="flex items-center justify-between border-b py-2"
-                    >
-                      <div>
-                        <p className="font-medium">
-                          {order.description || order.orderNumber}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {new Date(order.createdAt).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p
-                          className={`font-bold ${order.type === "income" ? "text-green-600" : "text-red-600"}`}
-                        >
-                          {order.type === "income" ? "+" : "-"}
-                          {order.totalAmount.toLocaleString()} SYP
-                        </p>
-                        <Badge
-                          variant={
-                            order.type === "income" ? "default" : "destructive"
-                          }
-                        >
-                          {order.type === "income" ? t("income") : t("expense")}
-                        </Badge>
-                      </div>
+                {executedOrders.slice(0, 10).map((order: any) => (
+                  <div
+                    key={order.id}
+                    className="flex items-center justify-between border-b py-2"
+                  >
+                    <div>
+                      <p className="font-medium">
+                        {order.description || order.orderNumber}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {new Date(order.createdAt).toLocaleDateString()}
+                      </p>
                     </div>
-                  ))}
+                    <div className="text-right">
+                      <p
+                        className={`font-bold ${order.type === "income" ? "text-green-600" : "text-red-600"}`}
+                      >
+                        {order.type === "income" ? "+" : "-"}
+                        {order.totalAmount.toLocaleString()} {currency}
+                      </p>
+                      <Badge
+                        variant={
+                          order.type === "income" ? "default" : "destructive"
+                        }
+                      >
+                        {order.type === "income" ? t("income") : t("expense")}
+                      </Badge>
+                    </div>
+                  </div>
+                ))}
               </div>
             ) : (
               <p className="text-center text-muted-foreground">

@@ -1,6 +1,7 @@
 // src/app/[locale]/orders/page.tsx
 "use client";
 import { SearchInput } from "@/components/SearchInput";
+import { useSettings } from "@/hooks/useSettings";
 
 import { useState, useMemo, useRef, useEffect } from "react";
 import useSWR from "swr";
@@ -44,6 +45,7 @@ export default function OrdersPage() {
   const t = useTranslations();
   const { user } = useAuth();
   const locale = useLocale();
+  const { currency } = useSettings();
 
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -274,7 +276,7 @@ export default function OrdersPage() {
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  {order.totalAmount.toLocaleString()} {t("Common.syp")}
+                  {order.totalAmount.toLocaleString()} {currency || "SYP"}
                 </TableCell>
                 <TableCell>
                   <Badge

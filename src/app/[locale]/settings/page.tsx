@@ -11,7 +11,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 
 export default function SettingsPage() {
@@ -20,18 +19,15 @@ export default function SettingsPage() {
   const { data: settings, isLoading } = useSWR("/api/settings", fetcher);
   const [loading, setLoading] = useState(false);
 
-  // Find specific settings
+  // Find settings
   const companyName =
     settings?.find((s: any) => s.key === "company_name")?.value || "";
   const currency =
     settings?.find((s: any) => s.key === "currency")?.value || "SYP";
-  const requireApproval =
-    settings?.find((s: any) => s.key === "require_approval")?.value === "true";
 
   const [formData, setFormData] = useState({
     companyName: companyName,
     currency: currency,
-    requireApproval: requireApproval,
   });
 
   if (isLoading)
@@ -49,7 +45,6 @@ export default function SettingsPage() {
       const updates = [
         { key: "company_name", value: formData.companyName },
         { key: "currency", value: formData.currency },
-        { key: "require_approval", value: String(formData.requireApproval) },
       ];
 
       const response = await fetch(
@@ -106,16 +101,6 @@ export default function SettingsPage() {
                   setFormData({ ...formData, currency: e.target.value })
                 }
                 placeholder="SYP"
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <Label>{t("Settings.requireApproval")}</Label>
-              <Switch
-                checked={formData.requireApproval}
-                onCheckedChange={(checked) =>
-                  setFormData({ ...formData, requireApproval: checked })
-                }
               />
             </div>
 

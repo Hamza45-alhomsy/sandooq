@@ -201,7 +201,8 @@ app.post("/api/auth/verify", async (req, res) => {
     const decodedToken = await auth.verifyIdToken(token);
     const firebaseUid = decodedToken.uid;
 
-    const user = await prisma.user.findUnique({
+    // 1. Find existing user
+    let user = await prisma.user.findUnique({
       where: { uid: firebaseUid },
       include: {
         role: {
@@ -212,13 +213,49 @@ app.post("/api/auth/verify", async (req, res) => {
       },
     });
 
+    // 2. If not found, auto‑create (for Google / SSO)
     if (!user) {
-      return res.status(404).json({
-        error: "User not found. Please contact administrator.",
-        exists: false,
+      console.log(`Auto‑creating user for UID: ${firebaseUid}`);
+
+      const defaultRole = await prisma.role.findUnique({
+        where: { name: "client" },
       });
+      const roleId = defaultRole?.id || 3; // fallback to 3
+
+      const displayName =
+        decodedToken.name || decodedToken.email?.split("@")[0] || "New User";
+      const email = decodedToken.email || "";
+
+      user = await prisma.user.create({
+        data: {
+          uid: firebaseUid,
+          email: email,
+          fullName: displayName,
+          roleId: roleId,
+          phone: null,
+          isActive: true,
+        },
+        include: {
+          role: {
+            include: {
+              permissions: true,
+            },
+          },
+        },
+      });
+
+      // Log the registration
+      await createAuditLog(
+        user.id,
+        "REGISTER",
+        "User",
+        user.id,
+        { email: user.email, provider: "google" },
+        req,
+      );
     }
 
+    // 3. Check active status
     if (!user.isActive) {
       return res.status(403).json({
         error: "Account deactivated.",
@@ -227,6 +264,7 @@ app.post("/api/auth/verify", async (req, res) => {
       });
     }
 
+    // 4. Log login
     await createAuditLog(
       user.id,
       "LOGIN",
@@ -236,6 +274,7 @@ app.post("/api/auth/verify", async (req, res) => {
       req,
     );
 
+    // 5. Return user data
     res.json({
       user: {
         id: user.id,
@@ -254,7 +293,6 @@ app.post("/api/auth/verify", async (req, res) => {
     res.status(401).json({ error: "Invalid token" });
   }
 });
-
 // ============ PUBLIC REGISTRATION ============
 app.post("/api/auth/register", async (req, res) => {
   try {
@@ -584,7 +622,197 @@ app.get("/api/orders/:id", requireAuth, async (req, res) => {
     res.status(500).json({ error: "Failed to fetch order" });
   }
 });
+// ============ UPDATE USER ROLE ============
+app.put(
+  "/api/users/:id/role",
+  requireAuth,
+  requirePermission("user", "manage"),
+  async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      const { roleId } = req.body;
 
+      // Validate roleId
+      const role = await prisma.role.findUnique({
+        where: { id: roleId },
+      });
+      if (!role) {
+        return res.status(400).json({ error: "Invalid role ID" });
+      }
+
+      // Check if user exists
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+      });
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Prevent admin from downgrading themselves (optional safety)
+      if (user.id === req.user.id) {
+        return res.status(403).json({
+          error: "You cannot change your own role",
+        });
+      }
+
+      // Update user role
+      const updatedUser = await prisma.user.update({
+        where: { id: userId },
+        data: { roleId: roleId },
+        include: { role: true },
+      });
+
+      await createAuditLog(
+        req.user.id,
+        "UPDATE_USER_ROLE",
+        "User",
+        userId,
+        { oldRoleId: user.roleId, newRoleId: roleId },
+        req,
+      );
+
+      res.json({
+        message: "User role updated successfully",
+        user: {
+          id: updatedUser.id,
+          email: updatedUser.email,
+          fullName: updatedUser.fullName,
+          role: updatedUser.role.name,
+        },
+      });
+    } catch (error) {
+      console.error("Update user role error:", error);
+      res.status(500).json({ error: "Failed to update user role" });
+    }
+  },
+);
+// ============ UPDATE ORDER (Edit) ============
+app.put(
+  "/api/orders/:id",
+  requireAuth,
+  requirePermission("order", "create"),
+  async (req, res) => {
+    try {
+      const orderId = parseInt(req.params.id);
+      const user = req.user;
+
+      // Schema with updatedAt for version check
+      const schema = z.object({
+        type: z.enum(["income", "expense"]),
+        description: z.string().optional(),
+        items: z
+          .array(
+            z.object({
+              description: z.string().min(1, "Description is required"),
+              quantity: z
+                .number()
+                .int()
+                .positive("Quantity must be at least 1"),
+              unitPrice: z
+                .number()
+                .positive("Unit price must be greater than 0"),
+              categoryId: z.number().int().optional(),
+            }),
+          )
+          .min(1, "At least one item is required"),
+        updatedAt: z.string().datetime(), // 🛡️ Version check
+      });
+
+      const data = schema.parse(req.body);
+
+      // Fetch current order
+      const order = await prisma.order.findUnique({
+        where: { id: orderId },
+        include: { items: true },
+      });
+
+      if (!order) {
+        return res.status(404).json({ error: "Order not found" });
+      }
+
+      // ✅ Only the owner can edit
+      if (order.userId !== user.id) {
+        return res.status(403).json({
+          error: "You can only edit your own orders",
+        });
+      }
+
+      // ✅ Only pending orders can be edited
+      if (order.status !== "pending") {
+        return res.status(400).json({
+          error: "Only pending orders can be edited",
+        });
+      }
+
+      // 🔐 CONFLICT CHECK: Did someone else modify this order since the user loaded it?
+      if (order.updatedAt.toISOString() !== data.updatedAt) {
+        return res.status(409).json({
+          error:
+            "The order has been modified by another user. Please refresh and try again.",
+        });
+      }
+
+      // Calculate total amount
+      const totalAmount = data.items.reduce(
+        (sum, item) => sum + item.quantity * item.unitPrice,
+        0,
+      );
+
+      // Update order and items in a transaction
+      const updatedOrder = await prisma.$transaction(async (tx) => {
+        const updated = await tx.order.update({
+          where: { id: orderId },
+          data: {
+            type: data.type,
+            description: data.description,
+            totalAmount: totalAmount,
+          },
+        });
+
+        // Delete old items
+        await tx.orderItem.deleteMany({
+          where: { orderId: orderId },
+        });
+
+        // Create new items
+        await tx.orderItem.createMany({
+          data: data.items.map((item) => ({
+            orderId: orderId,
+            description: item.description,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            totalPrice: item.quantity * item.unitPrice,
+            categoryId: item.categoryId || null,
+          })),
+        });
+
+        return updated;
+      });
+
+      // Log audit
+      await createAuditLog(
+        user.id,
+        "UPDATE_ORDER",
+        "Order",
+        orderId,
+        { orderNumber: order.orderNumber },
+        req,
+        orderId,
+      );
+
+      res.json({
+        message: "Order updated successfully",
+        order: updatedOrder,
+      });
+    } catch (error) {
+      console.error("Update order error:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ errors: error.errors });
+      }
+      res.status(500).json({ error: "Failed to update order" });
+    }
+  },
+);
 app.post(
   "/api/orders/create",
   requireAuth,
@@ -619,7 +847,7 @@ app.post(
           data: {
             orderNumber,
             type: data.type,
-            status: "pending",
+            status: "pending", // ✅ Always pending
             totalAmount,
             description: data.description,
             userId: req.user.id,
@@ -660,7 +888,6 @@ app.post(
     }
   },
 );
-
 app.post(
   "/api/orders/:id/approve",
   requireAuth,

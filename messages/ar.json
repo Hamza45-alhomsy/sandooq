@@ -40,7 +40,12 @@
     "signIn": "تسجيل الدخول",
     "signingIn": "جاري تسجيل الدخول...",
     "loginFailed": "فشل تسجيل الدخول",
-    "success": "تم تسجيل الدخول بنجاح"
+    "success": "تم تسجيل الدخول بنجاح",
+    "or": "أو تواصل باستخدام",
+    "googleSignIn": "تسجيل الدخول بواسطة Google",
+    "googleSuccess": "تم تسجيل الدخول بواسطة Google بنجاح!",
+    "googleFailed": "فشل تسجيل الدخول بواسطة Google",
+    "forgotPassword": "نسيت كلمة المرور؟"
   },
   "SignUp": {
     "title": "إنشاء حساب",
@@ -55,7 +60,9 @@
     "error": "فشل التسجيل",
     "alreadyHaveAccount": "لديك حساب بالفعل؟",
     "loginHere": "تسجيل الدخول هنا",
-    "passwordMismatch": "كلمة المرور غير متطابقة"
+    "passwordMismatch": "كلمة المرور غير متطابقة",
+    "or": "أو سجل باستخدام",
+    "googleSignUp": "التسجيل بواسطة Google"
   },
   "Dashboard": {
     "title": "لوحة التحكم",
@@ -92,6 +99,8 @@
     "client": "العميل"
   },
   "OrderDetail": {
+    "rejectionReason": "سبب الرفض",
+    "editOrder": "تعديل الطلب",
     "reject": "رفض",
     "cancelOrder": "إلغاء الطلب",
     "title": "تفاصيل الطلب",
@@ -147,7 +156,8 @@
     "logout": "تسجيل الخروج",
     "profile": "الملف الشخصي",
     "darkMode": "الوضع الليلي",
-    "lightMode": "الوضع النهاري"
+    "lightMode": "الوضع النهاري",
+    "investorDashboard": "لوحة المستثمر"
   },
   "Profile": {
     "title": "الملف الشخصي",
@@ -159,9 +169,22 @@
     "role": "الدور",
     "emailDisabled": "لا يمكن تغيير البريد الإلكتروني",
     "updateSuccess": "تم تحديث الملف الشخصي بنجاح",
-    "updateError": "فشل تحديث الملف الشخصي"
+    "updateError": "فشل تحديث الملف الشخصي",
+    "changePassword": "تغيير كلمة المرور",
+    "changePasswordDesc": "قم بتحديث كلمة المرور الخاصة بك",
+    "currentPassword": "كلمة المرور الحالية",
+    "newPassword": "كلمة المرور الجديدة",
+    "confirmNewPassword": "تأكيد كلمة المرور الجديدة",
+    "updatePassword": "تحديث كلمة المرور",
+    "updatingPassword": "جاري التحديث...",
+    "passwordMismatch": "كلمة المرور غير متطابقة",
+    "passwordTooShort": "يجب أن تتكون كلمة المرور من 6 أحرف على الأقل",
+    "passwordSuccess": "تم تغيير كلمة المرور بنجاح!",
+    "passwordError": "فشل تغيير كلمة المرور",
+    "wrongPassword": "كلمة المرور الحالية غير صحيحة"
   },
   "Users": {
+    "phone": "رقم الهاتف",
     "title": "إدارة المستخدمين",
     "newUser": "مستخدم جديد",
     "name": "الاسم الكامل",
@@ -177,23 +200,57 @@
     "delete": "حذف",
     "confirmDelete": "هل أنت متأكد من حذف هذا المستخدم؟",
     "success": "تم إنشاء المستخدم بنجاح",
-    "error": "فشل إنشاء المستخدم"
+    "error": "فشل إنشاء المستخدم",
+    "editRole": "تعديل الدور",
+    "editRoleDialog": {
+      "title": "تعديل دور المستخدم",
+      "user": "المستخدم",
+      "role": "الدور",
+      "save": "حفظ التغييرات",
+      "cancel": "إلغاء",
+      "saving": "جاري الحفظ..."
+    },
+    "roles": {
+      "admin": "مدير",
+      "investor": "مستثمر",
+      "client": "عميل"
+    }
   },
   "Audit": {
     "title": "سجل التدقيق",
     "user": "المستخدم",
     "action": "الإجراء",
     "entity": "الكيان",
-    "entityId": "معرف الكيان",
+    "recordId": "معرف السجل",
     "date": "التاريخ",
-    "ipAddress": "عنوان IP",
-    "noLogs": "لا توجد سجلات تدقيق"
+    "search": "بحث...",
+    "noLogs": "لا توجد سجلات تدقيق",
+    "noResults": "لا توجد نتائج تطابق بحثك",
+    "actions": {
+      "login": "تسجيل الدخول",
+      "logout": "تسجيل الخروج",
+      "createOrder": "إنشاء طلب",
+      "updateOrder": "تعديل طلب",
+      "approveOrder": "الموافقة على طلب",
+      "executeOrder": "تنفيذ طلب",
+      "rejectOrder": "رفض طلب",
+      "cancelOrder": "إلغاء طلب",
+      "createUser": "إنشاء مستخدم",
+      "updateUserRole": "تعديل دور مستخدم",
+      "updateProfile": "تعديل الملف الشخصي",
+      "uploadDocument": "رفع مستند",
+      "updateSettings": "تعديل الإعدادات",
+      "register": "تسجيل",
+      "or": "أو تواصل باستخدام",
+      "googleSignIn": "تسجيل الدخول بواسطة Google",
+      "googleSuccess": "تم تسجيل الدخول بواسطة Google بنجاح!",
+      "googleFailed": "فشل تسجيل الدخول بواسطة Google"
+    }
   },
   "Settings": {
     "title": "الإعدادات",
     "companyName": "اسم الشركة",
     "currency": "العملة",
-    "requireApproval": "طلب الموافقة",
     "save": "حفظ التغييرات",
     "saving": "جاري الحفظ...",
     "success": "تم تحديث الإعدادات بنجاح",
@@ -213,6 +270,7 @@
     "fileTypes": "الأنواع المدعومة: PDF, JPG, PNG"
   },
   "Investor": {
+    "fundBalanceNote": "الإيرادات - المصروفات",
     "title": "لوحة مستثمر",
     "incomeVsExpense": "الإيرادات مقابل المصروفات",
     "fundBalanceTrend": "اتجاه رصيد الصندوق",

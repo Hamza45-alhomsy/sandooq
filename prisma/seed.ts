@@ -1,7 +1,26 @@
 // prisma/seed.ts
 import { PrismaClient } from "@prisma/client";
+import { initializeApp, cert } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
+import { readFileSync } from "fs";
+import { dirname, join } from "path";
+import { fileURLToPath } from "url";
 
 const prisma = new PrismaClient();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Load service account JSON (same file your backend uses)
+const serviceAccount = JSON.parse(
+  readFileSync(join(__dirname, "../service-account-key.json"), "utf-8"),
+);
+
+// Initialize Firebase Admin
+initializeApp({
+  credential: cert(serviceAccount),
+});
+const auth = getAuth();
 
 async function main() {
   console.log("🌱 Seeding database...");
@@ -16,7 +35,6 @@ async function main() {
     skipDuplicates: true,
   });
 
-  // Fetch the roles to get their IDs for permissions
   const adminRole = await prisma.role.findUnique({ where: { name: "admin" } });
   const investorRole = await prisma.role.findUnique({
     where: { name: "investor" },
@@ -31,7 +49,6 @@ async function main() {
 
   // ========== 2. Create Permissions ==========
   const permissions = [
-    // Admin permissions
     { roleId: adminRole.id, resource: "order", action: "view_all" },
     { roleId: adminRole.id, resource: "order", action: "create" },
     { roleId: adminRole.id, resource: "order", action: "approve" },
@@ -44,11 +61,9 @@ async function main() {
     { roleId: adminRole.id, resource: "report", action: "export" },
     { roleId: adminRole.id, resource: "audit", action: "view" },
     { roleId: adminRole.id, resource: "setting", action: "manage" },
-    // Investor permissions
     { roleId: investorRole.id, resource: "order", action: "view_all" },
     { roleId: investorRole.id, resource: "fund", action: "view" },
     { roleId: investorRole.id, resource: "report", action: "view" },
-    // Client permissions
     { roleId: clientRole.id, resource: "order", action: "create" },
     { roleId: clientRole.id, resource: "order", action: "view_own" },
   ];
@@ -102,7 +117,75 @@ async function main() {
     skipDuplicates: true,
   });
 
+  // ========== 6. Create the Admin User (Firebase + MySQL) ==========
+  const adminEmail = "admin@system.com";
+  const adminPassword = "Admin123!";
+  const adminFullName = "System Admin";
+
+  try {
+    // Try to create the user in Firebase Auth
+    const firebaseUser = await auth.createUser({
+      email: adminEmail,
+      password: adminPassword,
+      displayName: adminFullName,
+    });
+    console.log(`✅ Firebase user created: ${firebaseUser.uid}`);
+
+    // Insert into MySQL
+    await prisma.user.create({
+      data: {
+        uid: firebaseUser.uid,
+        email: adminEmail,
+        fullName: adminFullName,
+        roleId: adminRole.id,
+        phone: null,
+        isActive: true,
+      },
+    });
+    console.log("✅ Admin user created in MySQL");
+  } catch (error: any) {
+    // If the user already exists in Firebase, fetch the UID and ensure MySQL entry exists
+    if (error.code === "auth/email-already-exists") {
+      console.log(`ℹ️ Admin user already exists in Firebase: ${adminEmail}`);
+      try {
+        const existingFirebaseUser = await auth.getUserByEmail(adminEmail);
+        // Check if user exists in MySQL
+        const existingMySQLUser = await prisma.user.findUnique({
+          where: { email: adminEmail },
+        });
+        if (!existingMySQLUser) {
+          await prisma.user.create({
+            data: {
+              uid: existingFirebaseUser.uid,
+              email: adminEmail,
+              fullName: adminFullName,
+              roleId: adminRole.id,
+              phone: null,
+              isActive: true,
+            },
+          });
+          console.log("✅ Admin user created in MySQL (Firebase existed)");
+        } else {
+          // Ensure the MySQL user has admin role
+          if (existingMySQLUser.roleId !== adminRole.id) {
+            await prisma.user.update({
+              where: { email: adminEmail },
+              data: { roleId: adminRole.id },
+            });
+            console.log("✅ Existing MySQL user promoted to admin");
+          }
+          console.log("✅ Admin user already exists in MySQL");
+        }
+      } catch (fetchError) {
+        console.error("Failed to fetch existing Firebase user:", fetchError);
+      }
+    } else {
+      console.error("Failed to create admin user:", error);
+    }
+  }
+
   console.log("✅ Seeding complete!");
+  console.log(`👑 Admin credentials: ${adminEmail} / ${adminPassword}`);
 }
 
 main()
@@ -110,4 +193,7 @@ main()
     console.error(e);
     process.exit(1);
   })
-  .finally(async () => await prisma.$disconnect());
+  .finally(async () => {
+    await prisma.$disconnect();
+    process.exit(0);
+  });
