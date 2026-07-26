@@ -105,7 +105,7 @@ export function AppSidebar() {
     >
       <SidebarHeader className="border-b p-4">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="text-xl font-bold truncate">💰 {companyName}</span>
+          <span className="text-xl font-bold truncate"> {companyName}</span>
         </div>
       </SidebarHeader>
 

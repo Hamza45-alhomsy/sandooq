@@ -1,11 +1,91 @@
-1. Project Overview
-   A web-based Cash Flow Daily Management System built with Next.js and Google Firebase, utilizing a single fund model. The system tracks daily financial operations (income/expenses), manages approval workflows, stores supporting documents on Cloudinary, and provides role-based dashboards and reports.
+🗄️ Step 6: Set Up the Database
+Type this command and press Enter:
+step 1 :
+open .env file and set the DATABASE_URL to your MySQL database connection string. For example:
+DATABASE_URL="mysql://username:password@localhost:3306/cashflow_db"
+powershell
+--->npm run db:setup
+This creates all tables and inserts default data (including the admin user).
 
-Key Architecture Decisions:
+You will see a message like:
 
-Single fund (no inter-fund transfers).
-Local Node.js/Express Backend to handle sensitive operations securely via Firebase Admin SDK (bypasses the need for a credit card required by Firebase Cloud Functions).
-Firebase used exclusively for Database (Firestore) and Authentication.
-Cloudinary for document storage.
-RTL-first Arabic interface.
-Ngrok used temporarily for real-time demonstration/presentation over the internet without deployment.
+text
+✅ Seeding complete!  
+👑 Admin credentials: admin@system.com / Admin123!
+If this command gives an error, you can run these two commands separately instead:
+
+powershell
+--->npx prisma db push
+powershell
+--->npx prisma db seed
+
+---
+
+🚀 Step 2: Start the Backend Server (Terminal 1)
+powershell
+--->npm run server
+✅ You should see:
+
+text
+🚀 Cash Flow API running on http://localhost:3001
+Keep this terminal window open (do not close it).
+
+---
+
+🌐 Step 3: Start the Frontend Server (Terminal 2)
+powershell
+--->npm run dev
+✅ You should see:
+
+text
+✅ Ready on http://localhost:3000
+Keep this terminal window open (do not close it).
+
+---
+
+🔑 Step 4: Log In
+Open your web browser (Chrome, Edge, Firefox).
+
+Go to: http://localhost:3000
+
+Click "Sign In".
+
+Use these credentials:
+
+Email: admin@system.com
+
+Password: Admin123!
+
+## You are now logged in as the Administrator.
+
+🧪 (Optional) Step 5: View the Database in Prisma Studio
+If you want to see the data directly in a visual interface:
+
+Open a new terminal.
+
+Navigate to the project root:
+
+powershell
+cd Desktop\CashFlow-System
+Run:
+
+powershell
+--->npx prisma studio
+A browser window will open at http://localhost:5555 showing all your tables.
+
+---
+
+🛑 How to Stop the Servers
+In any terminal where a server is running (backend or frontend), press Ctrl + C.
+
+Type Y and press Enter if it asks to terminate.
+
+📌 Quick Command Recap (Cheat Sheet)
+Action Command
+Go to project folder cd Desktop\CashFlow-System
+Install dependencies --->npm install
+Setup database --->npm run db:setup
+Start backend --->cd backend → npm run server
+Start backend (auto‑restart) --->cd backend → npm run server:dev
+Start frontend --->cd frontend → npm run dev
+Open Prisma Studio --->npx prisma studio
