@@ -1,8 +1,8 @@
-🗄️ Step 6: Set Up the Database
 Type this command and press Enter:
 step 1 :
+Install dependencies --->npm install
 open .env file and set the DATABASE_URL to your MySQL database connection string. For example:
-DATABASE_URL="mysql://username:password@localhost:3306/cashflow_db"
+DATABASE_URL="mysql://username:password@localhost:3306/cash_flow_db"
 powershell
 --->npm run db:setup
 This creates all tables and inserts default data (including the admin user).
@@ -12,7 +12,7 @@ You will see a message like:
 text
 ✅ Seeding complete!  
 👑 Admin credentials: admin@system.com / Admin123!
-If this command gives an error, you can run these two commands separately instead:
+! If this command gives an error, you can run these two commands separately instead:
 
 powershell
 --->npx prisma db push
@@ -34,7 +34,8 @@ Keep this terminal window open (do not close it).
 
 🌐 Step 3: Start the Frontend Server (Terminal 2)
 powershell
---->npm run dev
+--->npm run build
+--->npm run start
 ✅ You should see:
 
 text
@@ -66,7 +67,7 @@ Open a new terminal.
 Navigate to the project root:
 
 powershell
-cd Desktop\CashFlow-System
+cd Desktop\cash-managment
 Run:
 
 powershell
@@ -85,7 +86,7 @@ Action Command
 Go to project folder cd Desktop\CashFlow-System
 Install dependencies --->npm install
 Setup database --->npm run db:setup
-Start backend --->cd backend → npm run server
+Start backend ---> npm run server
 Start backend (auto‑restart) --->cd backend → npm run server:dev
 Start frontend --->cd frontend → npm run dev
 Open Prisma Studio --->npx prisma studio

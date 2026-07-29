@@ -153,7 +153,9 @@ export function LoginDialog({
       </DialogTrigger>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>{t("Login.title")}</DialogTitle>
+          <DialogTitle className="text-center px-8">
+            {t("Login.title")}
+          </DialogTitle>{" "}
         </DialogHeader>
         <Tabs defaultValue={defaultTab} className="w-full">
           <TabsList className="grid w-full grid-cols-2">
@@ -169,7 +171,7 @@ export function LoginDialog({
                 <Input
                   id="login-email"
                   type="email"
-                  placeholder="admin@system.com"
+                  placeholder="example@system.com"
                   value={loginEmail}
                   onChange={(e) => setLoginEmail(e.target.value)}
                   required
@@ -181,7 +183,6 @@ export function LoginDialog({
                 <Input
                   id="login-password"
                   type="password"
-                  placeholder="••••••••"
                   value={loginPassword}
                   onChange={(e) => setLoginPassword(e.target.value)}
                   required

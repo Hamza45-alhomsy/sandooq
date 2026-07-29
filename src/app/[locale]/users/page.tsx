@@ -37,10 +37,43 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 
+// ===== Type Definitions =====
+interface Role {
+  id: number;
+  name: string;
+}
+
+interface User {
+  id: number;
+  fullName: string;
+  email: string;
+  phone: string | null;
+  roleId: number;
+  role?: Role;
+  isActive: boolean;
+}
+
+interface RoleOption {
+  value: string;
+  label: string;
+}
+
 export default function UsersPage() {
   const t = useTranslations();
   const { token } = useAuth();
-  const { data: users, error, isLoading } = useSWR("/api/users", fetcher);
+
+  // Fetch users and roles with proper types
+  const {
+    data: users,
+    error,
+    isLoading: usersLoading,
+  } = useSWR<User[]>("/api/users", fetcher);
+  const {
+    data: roles,
+    error: rolesError,
+    isLoading: rolesLoading,
+  } = useSWR<Role[]>("/api/roles", fetcher);
+
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -53,34 +86,29 @@ export default function UsersPage() {
 
   // Edit role state
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState<any>(null);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
   const [editingRoleId, setEditingRoleId] = useState("");
   const [editLoading, setEditLoading] = useState(false);
 
-  // 🔥 Build role options with translations
-  const roleOptions = useMemo(() => {
-    if (!users) return [];
-    const roleMap = new Map<number, string>();
-    users.forEach((user: any) => {
-      if (user.role && user.role.id && user.role.name) {
-        roleMap.set(user.role.id, user.role.name);
-      }
-    });
-    return Array.from(roleMap.entries()).map(([id, name]) => {
+  // ✅ Build role options from the roles table (not from users)
+  const roleOptions = useMemo<RoleOption[]>(() => {
+    if (!roles) return [];
+    return roles.map((role) => {
+      const lowerName = role.name.toLowerCase();
       let label = "";
-      const lowerName = name.toLowerCase();
       if (lowerName === "admin") label = t("Users.roles.admin");
       else if (lowerName === "investor") label = t("Users.roles.investor");
       else if (lowerName === "client") label = t("Users.roles.client");
-      else label = name.charAt(0).toUpperCase() + name.slice(1);
+      else label = role.name.charAt(0).toUpperCase() + role.name.slice(1);
       return {
-        value: String(id),
+        value: String(role.id),
         label,
       };
     });
-  }, [users, t]);
+  }, [roles, t]);
 
-  const getRoleNameForUser = (user: any) => {
+  // Helper to get role name for display in table
+  const getRoleNameForUser = (user: User) => {
     const found = roleOptions.find((r) => r.value === String(user.roleId));
     return found ? found.label : user.role?.name || "—";
   };
@@ -162,26 +190,30 @@ export default function UsersPage() {
     }
   };
 
-  const openEditDialog = (user: any) => {
+  const openEditDialog = (user: User) => {
     setEditingUser(user);
     setEditingRoleId(String(user.roleId));
     setEditDialogOpen(true);
   };
 
-  if (isLoading)
+  // Show loading while users or roles are loading
+  if (usersLoading || rolesLoading) {
     return (
       <MainLayout>
         <div>{t("Common.loading")}</div>
       </MainLayout>
     );
-  if (error)
+  }
+
+  if (error || rolesError) {
     return (
       <MainLayout>
         <div>
-          {t("Common.error")}: {error.message}
+          {t("Common.error")}: {error?.message || rolesError?.message}
         </div>
       </MainLayout>
     );
+  }
 
   return (
     <MainLayout>
@@ -264,7 +296,6 @@ export default function UsersPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              {/* ✅ Removed whitespace – all <TableHead> on one line */}
               <TableHead>{t("Users.name")}</TableHead>
               <TableHead>{t("Users.email")}</TableHead>
               <TableHead>{t("Users.phone")}</TableHead>
@@ -274,7 +305,7 @@ export default function UsersPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {users?.map((user: any) => (
+            {users?.map((user) => (
               <TableRow key={user.id}>
                 <TableCell>{user.fullName}</TableCell>
                 <TableCell>{user.email}</TableCell>

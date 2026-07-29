@@ -1183,6 +1183,23 @@ app.put(
     }
   },
 );
+// ============ ROLES ============
+app.get(
+  "/api/roles",
+  requireAuth,
+  requirePermission("user", "manage"),
+  async (req, res) => {
+    try {
+      const roles = await prisma.role.findMany({
+        select: { id: true, name: true },
+      });
+      res.json(roles);
+    } catch (error) {
+      console.error("Get roles error:", error);
+      res.status(500).json({ error: "Failed to fetch roles" });
+    }
+  },
+);
 // ============ DASHBOARD STATS ============
 app.get("/api/dashboard/stats", requireAuth, async (req, res) => {
   try {
