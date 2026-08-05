@@ -1,4 +1,4 @@
-Type this command and press Enter:
+To run this cash management site :
 step 1 :
 Install dependencies --->npm install
 open .env file and set the DATABASE_URL to your MySQL database connection string. For example:
