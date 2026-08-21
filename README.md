@@ -8,7 +8,9 @@ DATABASE_URL="mysql://username:password@localhost:3306/cash_flow_db"
 
 step 2 :
 run the following command to set up the database and seed it with default data:
+
 --->npm run db:setup
+
 This creates all tables and inserts default data (including the admin user).
 
 You will see a message like:
