@@ -3,6 +3,7 @@ step 1 :
 Install dependencies --->npm install
 open .env file and set the DATABASE_URL to your MySQL database connection string. For example:
 DATABASE_URL="mysql://username:password@localhost:3306/cash_flow_db"
+
 step 2 :
 run the following command to set up the database and seed it with default data:
 --->npm run db:setup
