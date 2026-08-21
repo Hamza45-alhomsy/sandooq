@@ -1,18 +1,25 @@
 To run this cash management site :
+
 step 1 :
 Install dependencies --->npm install
+
 open .env file and set the DATABASE_URL to your MySQL database connection string. For example:
 DATABASE_URL="mysql://username:password@localhost:3306/cash_flow_db"
+
 step 2 :
 run the following command to set up the database and seed it with default data:
+
 --->npm run db:setup
+
 This creates all tables and inserts default data (including the admin user).
 
 You will see a message like:
 
 text
 ✅ Seeding complete!  
+
 👑 Admin credentials: admin@system.com / Admin123!
+
 warning : ! If this command gives an error, you can run these two commands separately instead:
 
 powershell
@@ -24,7 +31,9 @@ powershell
 
 🚀 Step 3: Start the Backend Server (Terminal 1)
 powershell
+
 --->npm run server
+
 ✅ You should see:
 
 text
@@ -35,8 +44,11 @@ Keep this terminal window open (do not close it).
 
 🌐 Step 4: Start the Frontend Server (Terminal 2)
 powershell
+
 first : --->npm run build
+
 second : --->npm run start
+
 ✅ You should see:
 
 text
