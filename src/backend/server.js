@@ -200,8 +200,9 @@ app.post("/api/auth/verify", async (req, res) => {
 
     const decodedToken = await auth.verifyIdToken(token);
     const firebaseUid = decodedToken.uid;
+    const email = decodedToken.email || "";
 
-    // 1. Find existing user
+    // 1. Find existing user by UID
     let user = await prisma.user.findUnique({
       where: { uid: firebaseUid },
       include: {
@@ -213,7 +214,52 @@ app.post("/api/auth/verify", async (req, res) => {
       },
     });
 
-    // 2. If not found, auto‑create (for Google / SSO)
+    // 2. If not found by UID, try to find by email (for linking)
+    if (!user && email) {
+      const existingUserByEmail = await prisma.user.findUnique({
+        where: { email: email },
+        include: {
+          role: {
+            include: {
+              permissions: true,
+            },
+          },
+        },
+      });
+
+      if (existingUserByEmail) {
+        // Link the existing user to the new Firebase UID
+        console.log(
+          `Linking existing user (${email}) to new UID: ${firebaseUid}`,
+        );
+        user = await prisma.user.update({
+          where: { id: existingUserByEmail.id },
+          data: {
+            uid: firebaseUid,
+            fullName: decodedToken.name || existingUserByEmail.fullName,
+            isActive: true,
+          },
+          include: {
+            role: {
+              include: {
+                permissions: true,
+              },
+            },
+          },
+        });
+        // Log the linking event
+        await createAuditLog(
+          user.id,
+          "LINK_ACCOUNT",
+          "User",
+          user.id,
+          { email: user.email, provider: "google" },
+          req,
+        );
+      }
+    }
+
+    // 3. If still no user, create a new one
     if (!user) {
       console.log(`Auto‑creating user for UID: ${firebaseUid}`);
 
@@ -224,7 +270,6 @@ app.post("/api/auth/verify", async (req, res) => {
 
       const displayName =
         decodedToken.name || decodedToken.email?.split("@")[0] || "New User";
-      const email = decodedToken.email || "";
 
       user = await prisma.user.create({
         data: {
@@ -255,7 +300,7 @@ app.post("/api/auth/verify", async (req, res) => {
       );
     }
 
-    // 3. Check active status
+    // 4. Check active status
     if (!user.isActive) {
       return res.status(403).json({
         error: "Account deactivated.",
@@ -264,7 +309,7 @@ app.post("/api/auth/verify", async (req, res) => {
       });
     }
 
-    // 4. Log login
+    // 5. Log login
     await createAuditLog(
       user.id,
       "LOGIN",
@@ -274,7 +319,7 @@ app.post("/api/auth/verify", async (req, res) => {
       req,
     );
 
-    // 5. Return user data
+    // 6. Return user data
     res.json({
       user: {
         id: user.id,
