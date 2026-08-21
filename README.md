@@ -29,7 +29,9 @@ powershell
 
 🚀 Step 3: Start the Backend Server (Terminal 1)
 powershell
+
 --->npm run server
+
 ✅ You should see:
 
 text
@@ -40,8 +42,11 @@ Keep this terminal window open (do not close it).
 
 🌐 Step 4: Start the Frontend Server (Terminal 2)
 powershell
+
 first : --->npm run build
+
 second : --->npm run start
+
 ✅ You should see:
 
 text
