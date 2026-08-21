@@ -17,7 +17,9 @@ You will see a message like:
 
 text
 ✅ Seeding complete!  
+
 👑 Admin credentials: admin@system.com / Admin123!
+
 warning : ! If this command gives an error, you can run these two commands separately instead:
 
 powershell
