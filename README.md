@@ -3,7 +3,8 @@ step 1 :
 Install dependencies --->npm install
 open .env file and set the DATABASE_URL to your MySQL database connection string. For example:
 DATABASE_URL="mysql://username:password@localhost:3306/cash_flow_db"
-powershell
+step 2 :
+run the following command to set up the database and seed it with default data:
 --->npm run db:setup
 This creates all tables and inserts default data (including the admin user).
 
@@ -12,7 +13,7 @@ You will see a message like:
 text
 ✅ Seeding complete!  
 👑 Admin credentials: admin@system.com / Admin123!
-! If this command gives an error, you can run these two commands separately instead:
+warning : ! If this command gives an error, you can run these two commands separately instead:
 
 powershell
 --->npx prisma db push
@@ -21,7 +22,7 @@ powershell
 
 ---
 
-🚀 Step 2: Start the Backend Server (Terminal 1)
+🚀 Step 3: Start the Backend Server (Terminal 1)
 powershell
 --->npm run server
 ✅ You should see:
@@ -32,10 +33,10 @@ Keep this terminal window open (do not close it).
 
 ---
 
-🌐 Step 3: Start the Frontend Server (Terminal 2)
+🌐 Step 4: Start the Frontend Server (Terminal 2)
 powershell
---->npm run build
---->npm run start
+first : --->npm run build
+second : --->npm run start
 ✅ You should see:
 
 text
@@ -44,7 +45,7 @@ Keep this terminal window open (do not close it).
 
 ---
 
-🔑 Step 4: Log In
+🔑 Step 5: Log In
 Open your web browser (Chrome, Edge, Firefox).
 
 Go to: http://localhost:3000
@@ -59,7 +60,7 @@ Password: Admin123!
 
 ## You are now logged in as the Administrator.
 
-🧪 (Optional) Step 5: View the Database in Prisma Studio
+🧪 (Optional) Step 6: View the Database in Prisma Studio
 If you want to see the data directly in a visual interface:
 
 Open a new terminal.
