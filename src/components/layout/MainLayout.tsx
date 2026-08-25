@@ -1,7 +1,8 @@
 // src/components/layout/MainLayout.tsx
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useEffect } from "react";
+import { useRouter } from "@/i18n/routing";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   SidebarProvider,
@@ -14,6 +15,13 @@ import { Spinner } from "@/components/ui/spinner";
 export function MainLayout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
+
+  useEffect(() => {
+    // Redirect only after loading is complete and user is not authenticated
+    if (!loading && !user) {
+      router.push("/");
+    }
+  }, [user, loading, router]);
 
   if (loading) {
     return (

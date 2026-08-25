@@ -36,6 +36,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
+import { Search, X } from "lucide-react";
 
 // ===== Type Definitions =====
 interface Role {
@@ -62,7 +63,7 @@ export default function UsersPage() {
   const t = useTranslations();
   const { token } = useAuth();
 
-  // Fetch users and roles with proper types
+  // Fetch users and roles
   const {
     data: users,
     error,
@@ -73,6 +74,11 @@ export default function UsersPage() {
     error: rolesError,
     isLoading: rolesLoading,
   } = useSWR<Role[]>("/api/roles", fetcher);
+
+  // Filter states
+  const [searchQuery, setSearchQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
 
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -90,7 +96,7 @@ export default function UsersPage() {
   const [editingRoleId, setEditingRoleId] = useState("");
   const [editLoading, setEditLoading] = useState(false);
 
-  // ✅ Build role options from the roles table (not from users)
+  // Build role options
   const roleOptions = useMemo<RoleOption[]>(() => {
     if (!roles) return [];
     return roles.map((role) => {
@@ -107,10 +113,43 @@ export default function UsersPage() {
     });
   }, [roles, t]);
 
-  // Helper to get role name for display in table
   const getRoleNameForUser = (user: User) => {
     const found = roleOptions.find((r) => r.value === String(user.roleId));
     return found ? found.label : user.role?.name || "—";
+  };
+
+  // 🔍 Filter users
+  const filteredUsers = useMemo(() => {
+    if (!users) return [];
+
+    let filtered = users;
+
+    if (searchQuery.trim() !== "") {
+      const query = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(
+        (user) =>
+          user.fullName.toLowerCase().includes(query) ||
+          user.email.toLowerCase().includes(query) ||
+          (user.phone && user.phone.toLowerCase().includes(query)),
+      );
+    }
+
+    if (roleFilter !== "") {
+      filtered = filtered.filter((user) => String(user.roleId) === roleFilter);
+    }
+
+    if (statusFilter !== "") {
+      const isActive = statusFilter === "active";
+      filtered = filtered.filter((user) => user.isActive === isActive);
+    }
+
+    return filtered;
+  }, [users, searchQuery, roleFilter, statusFilter]);
+
+  const clearFilters = () => {
+    setSearchQuery("");
+    setRoleFilter("");
+    setStatusFilter("");
   };
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -196,7 +235,6 @@ export default function UsersPage() {
     setEditDialogOpen(true);
   };
 
-  // Show loading while users or roles are loading
   if (usersLoading || rolesLoading) {
     return (
       <MainLayout>
@@ -292,6 +330,73 @@ export default function UsersPage() {
         </Dialog>
       </div>
 
+      {/* 🔍 FILTER BAR */}
+      <div className="mb-6 flex flex-col gap-3 rounded-md border p-4 bg-muted/20">
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Search */}
+          <div className="relative flex-1 min-w-[180px]">
+            <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder={t("Users.search") || "Search users..."}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-8"
+            />
+          </div>
+
+          {/* Role filter */}
+          <Select
+            value={roleFilter}
+            onValueChange={(value: string | null) => {
+              if (value !== null) setRoleFilter(value);
+            }}
+          >
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder={t("Users.role")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">{t("Users.all") || "All Roles"}</SelectItem>
+              {roleOptions.map((opt) => (
+                <SelectItem key={opt.value} value={opt.value}>
+                  {opt.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Status filter */}
+          <Select
+            value={statusFilter}
+            onValueChange={(value: string | null) => {
+              if (value !== null) setStatusFilter(value);
+            }}
+          >
+            <SelectTrigger className="w-[150px]">
+              <SelectValue placeholder={t("Users.status")} />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="">{t("Users.all") || "All"}</SelectItem>
+              <SelectItem value="active">{t("Users.active")}</SelectItem>
+              <SelectItem value="inactive">{t("Users.inactive")}</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Clear filters */}
+          {(searchQuery || roleFilter || statusFilter) && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearFilters}
+              className="gap-1"
+            >
+              <X className="h-4 w-4" />
+              {t("Users.clear") || "Clear"}
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* 📋 USERS TABLE */}
       <div className="rounded-md border overflow-x-auto">
         <Table>
           <TableHeader>
@@ -305,28 +410,41 @@ export default function UsersPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {users?.map((user) => (
-              <TableRow key={user.id}>
-                <TableCell>{user.fullName}</TableCell>
-                <TableCell>{user.email}</TableCell>
-                <TableCell>{user.phone || "—"}</TableCell>
-                <TableCell>{getRoleNameForUser(user)}</TableCell>
-                <TableCell>
-                  <Badge variant={user.isActive ? "default" : "destructive"}>
-                    {user.isActive ? t("Users.active") : t("Users.inactive")}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => openEditDialog(user)}
-                  >
-                    {t("Users.editRole")}
-                  </Button>
+            {filteredUsers.length > 0 ? (
+              filteredUsers.map((user) => (
+                <TableRow key={user.id}>
+                  <TableCell>{user.fullName}</TableCell>
+                  <TableCell>{user.email}</TableCell>
+                  <TableCell>{user.phone || "—"}</TableCell>
+                  <TableCell>{getRoleNameForUser(user)}</TableCell>
+                  <TableCell>
+                    <Badge variant={user.isActive ? "default" : "destructive"}>
+                      {user.isActive ? t("Users.active") : t("Users.inactive")}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openEditDialog(user)}
+                    >
+                      {t("Users.editRole")}
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))
+            ) : (
+              <TableRow>
+                <TableCell
+                  colSpan={6}
+                  className="text-center py-8 text-muted-foreground"
+                >
+                  {searchQuery || roleFilter || statusFilter
+                    ? t("Users.noResults") || "No users match your filters."
+                    : t("Users.noUsers") || "No users found."}
                 </TableCell>
               </TableRow>
-            ))}
+            )}
           </TableBody>
         </Table>
       </div>
@@ -350,7 +468,7 @@ export default function UsersPage() {
               <Select
                 value={editingRoleId}
                 onValueChange={(value: string | null) => {
-                  if (value) setEditingRoleId(value);
+                  if (value !== null) setEditingRoleId(value);
                 }}
               >
                 <SelectTrigger>

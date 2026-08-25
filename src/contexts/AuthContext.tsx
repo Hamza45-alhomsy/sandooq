@@ -7,6 +7,7 @@ import {
   useEffect,
   useState,
   ReactNode,
+  useRef,
 } from "react";
 import { auth } from "@/lib/firebase/config";
 import {
@@ -38,19 +39,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState<string | null>(null);
+  const isMounted = useRef(true);
 
   useEffect(() => {
-    let isMounted = true;
+    isMounted.current = true;
 
-    // 🔥 Subscribe to Firebase auth state changes
-    const unsubscribe = onAuthStateChanged(
-      auth,
-      async (firebaseUser: FirebaseUser | null) => {
-        if (!isMounted) return;
+    // 🔥 1. Wait for Firebase to restore the session before doing anything
+    const initAuth = async () => {
+      try {
+        await auth.authStateReady();
+        if (!isMounted.current) return;
 
-        setLoading(true);
+        const firebaseUser = auth.currentUser;
 
         if (firebaseUser) {
+          // User is authenticated – verify with backend
           try {
             const idToken = await firebaseUser.getIdToken(true);
             setToken(idToken);
@@ -83,18 +86,75 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setToken(null);
           }
         } else {
+          // No user at all
           setUser(null);
           setToken(null);
         }
 
-        if (isMounted) {
+        // ✅ Initial loading is done – set loading to false
+        if (isMounted.current) {
           setLoading(false);
         }
-      },
-    );
+      } catch (error) {
+        console.error("Auth initialization error:", error);
+        if (isMounted.current) {
+          setLoading(false);
+          setUser(null);
+          setToken(null);
+        }
+      }
+    };
+
+    // 🔥 2. Subscribe to future auth changes (after initial load)
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      // Only handle changes if the component is mounted and we are past initial load
+      if (!isMounted.current || loading) return;
+
+      if (firebaseUser) {
+        // User logged in or token refreshed
+        try {
+          const idToken = await firebaseUser.getIdToken(true);
+          setToken(idToken);
+
+          const res = await fetch(
+            `${process.env.NEXT_PUBLIC_API_URL}/api/auth/verify`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ token: idToken }),
+            },
+          );
+
+          if (res.status === 401 || res.status === 403) {
+            console.warn("Token invalid or user disabled.");
+            await signOut(auth);
+            setUser(null);
+            setToken(null);
+          } else if (res.ok) {
+            const data = await res.json();
+            setUser(data.user);
+          } else {
+            console.error("Backend error:", res.status);
+            setUser(null);
+            setToken(null);
+          }
+        } catch (error) {
+          console.error("Network error:", error);
+          setUser(null);
+          setToken(null);
+        }
+      } else {
+        // User logged out
+        setUser(null);
+        setToken(null);
+      }
+    });
+
+    // Run the initialisation
+    initAuth();
 
     return () => {
-      isMounted = false;
+      isMounted.current = false;
       unsubscribe();
     };
   }, []);

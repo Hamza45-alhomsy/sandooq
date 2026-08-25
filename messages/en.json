@@ -206,6 +206,11 @@
     "wrongPassword": "Current password is incorrect"
   },
   "Users": {
+    "search": "Search users...",
+    "all": "All",
+    "clear": "Clear",
+    "noResults": "No users match your filters.",
+    "noUsers": "No users found.",
     "phone": "Phone",
     "title": "User Management",
     "newUser": "New User",
