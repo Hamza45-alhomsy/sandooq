@@ -106,16 +106,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     // 🔥 2. Subscribe to future auth changes (after initial load)
+    // Inside onAuthStateChanged
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      // Only handle changes if the component is mounted and we are past initial load
-      if (!isMounted.current || loading) return;
+      console.log(
+        "🔥 1. onAuthStateChanged fired. User:",
+        firebaseUser?.email || "null",
+      );
 
       if (firebaseUser) {
-        // User logged in or token refreshed
         try {
           const idToken = await firebaseUser.getIdToken(true);
-          setToken(idToken);
-
+          if (idToken) {
+            setToken(idToken);
+          } else {
+            console.error("Failed to get ID token");
+          }
           const res = await fetch(
             `${process.env.NEXT_PUBLIC_API_URL}/api/auth/verify`,
             {
@@ -124,30 +129,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               body: JSON.stringify({ token: idToken }),
             },
           );
+          console.log("📡 3. /api/auth/verify status:", res.status);
 
-          if (res.status === 401 || res.status === 403) {
-            console.warn("Token invalid or user disabled.");
-            await signOut(auth);
-            setUser(null);
-            setToken(null);
-          } else if (res.ok) {
+          if (res.ok) {
             const data = await res.json();
+            console.log("👤 4. User data received:", data.user);
             setUser(data.user);
+            console.log("✅ 5. User state set.");
           } else {
-            console.error("Backend error:", res.status);
-            setUser(null);
-            setToken(null);
+            console.error("❌ 6. /api/auth/verify failed:", await res.text());
           }
         } catch (error) {
-          console.error("Network error:", error);
-          setUser(null);
-          setToken(null);
+          console.error("❌ 7. Error in auth flow:", error);
         }
       } else {
-        // User logged out
+        console.log("🚫 No user, logging out.");
         setUser(null);
         setToken(null);
       }
+      setLoading(false);
+      console.log("⏳ 8. loading set to false.");
     });
 
     // Run the initialisation

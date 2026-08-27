@@ -77,7 +77,7 @@ export default function InvestorPage() {
 
   // Only executed orders
   const executedOrders =
-    orders?.filter((o: any) => o.status === "executed") || [];
+    orders?.filter((o: any) => o.status === "approved") || [];
 
   const totalIncome =
     executedOrders

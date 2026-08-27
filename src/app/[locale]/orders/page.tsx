@@ -89,17 +89,13 @@ export default function OrdersPage() {
   const statusMap = {
     pending: t("Common.pending"),
     approved: t("Common.approved"),
-    executed: t("Common.executed"),
     rejected: t("Common.rejected"),
-    cancelled: t("Common.cancelled"),
   };
 
   const statusColors = {
     pending: "bg-yellow-500",
     approved: "bg-blue-500",
-    executed: "bg-green-500",
     rejected: "bg-red-500",
-    cancelled: "bg-gray-500",
   };
 
   const dateFormat = locale === "ar" ? "dd/MM/yyyy" : "MM/dd/yyyy";
@@ -156,9 +152,7 @@ export default function OrdersPage() {
               <SelectItem value="">{t("Common.all") || "All"}</SelectItem>
               <SelectItem value="pending">{t("Common.pending")}</SelectItem>
               <SelectItem value="approved">{t("Common.approved")}</SelectItem>
-              <SelectItem value="executed">{t("Common.executed")}</SelectItem>
               <SelectItem value="rejected">{t("Common.rejected")}</SelectItem>
-              <SelectItem value="cancelled">{t("Common.cancelled")}</SelectItem>
             </SelectContent>
           </Select>
 

@@ -52,20 +52,15 @@ export default function DashboardPage() {
 
   const statusColors: Record<string, string> = {
     pending: "bg-yellow-500",
-    approved: "bg-blue-500",
-    executed: "bg-green-500",
+    approved: "bg-green-500",
     rejected: "bg-red-500",
-    cancelled: "bg-gray-500",
   };
 
   const statusLabels: Record<string, string> = {
     pending: t("Common.pending"),
     approved: t("Common.approved"),
-    executed: t("Common.executed"),
     rejected: t("Common.rejected"),
-    cancelled: t("Common.cancelled"),
   };
-
   const canViewFund = stats.fundBalance !== undefined;
 
   return (
@@ -107,19 +102,6 @@ export default function DashboardPage() {
           <CardContent>
             <p className="text-2xl font-bold text-blue-600">
               {stats.approvedOrders || 0}
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-green-600">
-              {t("Dashboard.executed")}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-2xl font-bold text-green-600">
-              {stats.executedOrders || 0}
             </p>
           </CardContent>
         </Card>

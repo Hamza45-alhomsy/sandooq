@@ -52,7 +52,7 @@ async function main() {
     { roleId: adminRole.id, resource: "order", action: "view_all" },
     { roleId: adminRole.id, resource: "order", action: "create" },
     { roleId: adminRole.id, resource: "order", action: "approve" },
-    { roleId: adminRole.id, resource: "order", action: "execute" },
+    { roleId: adminRole.id, resource: "order", action: "reject" },
     { roleId: adminRole.id, resource: "order", action: "delete" },
     { roleId: adminRole.id, resource: "user", action: "manage" },
     { roleId: adminRole.id, resource: "fund", action: "view" },

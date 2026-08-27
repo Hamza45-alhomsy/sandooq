@@ -17,12 +17,12 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    // Redirect only after loading is complete and user is not authenticated
+    console.log("🔄 MainLayout: loading =", loading, "user =", user);
     if (!loading && !user) {
+      console.log("🔴 Redirecting to /");
       router.push("/");
     }
   }, [user, loading, router]);
-
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center">

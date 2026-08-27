@@ -59,12 +59,10 @@ export function LoginDialog({
   const [signupLoading, setSignupLoading] = useState(false);
 
   const handleForgotPassword = async () => {
-    // Get the email from the login form state
     if (!loginEmail) {
       toast.error("Please enter your email address first.");
       return;
     }
-
     try {
       await sendPasswordResetEmail(auth, loginEmail);
       toast.success("Password reset email sent! Check your inbox.");
@@ -73,16 +71,15 @@ export function LoginDialog({
     }
   };
 
-  // 🔥 Shared Google handler – works for both Login and Signup
   const handleGoogleAuth = async () => {
     const provider = new GoogleAuthProvider();
     try {
-      const result = await signInWithPopup(auth, provider);
+      await signInWithPopup(auth, provider);
       toast.success(
         t("Login.googleSuccess") || "Signed in with Google successfully!",
       );
       setOpen(false);
-      router.push("/dashboard");
+      router.replace("/dashboard");
     } catch (error: any) {
       console.error(error);
       toast.error(
@@ -114,6 +111,7 @@ export function LoginDialog({
     }
     setSignupLoading(true);
     try {
+      // 1. Register user in Firebase + MySQL
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/auth/register`,
         {
@@ -133,11 +131,17 @@ export function LoginDialog({
         return;
       }
 
+      // 2. Auto-login
       await signInWithEmailAndPassword(auth, signupEmail, signupPassword);
       toast.success(t("SignUp.success"));
       setOpen(false);
-      router.push("/dashboard");
+
+      // ⏳ Wait for AuthContext to verify user with backend
+      setTimeout(() => {
+        router.replace("/dashboard");
+      }, 600);
     } catch (error: any) {
+      console.error("Signup error:", error);
       toast.error(error.message || t("SignUp.error"));
     } finally {
       setSignupLoading(false);
@@ -155,7 +159,7 @@ export function LoginDialog({
         <DialogHeader>
           <DialogTitle className="text-center px-8">
             {t("Login.title")}
-          </DialogTitle>{" "}
+          </DialogTitle>
         </DialogHeader>
         <Tabs defaultValue={defaultTab} className="w-full">
           <TabsList className="grid w-full grid-cols-2">
@@ -183,13 +187,12 @@ export function LoginDialog({
                 <Input
                   id="login-password"
                   type="password"
+                  placeholder="••••••••"
                   value={loginPassword}
                   onChange={(e) => setLoginPassword(e.target.value)}
                   required
                 />
               </div>
-
-              {/* ✅ Forgot Password Button */}
               <div className="flex items-center justify-end">
                 <Button
                   type="button"
@@ -200,7 +203,6 @@ export function LoginDialog({
                   {t("Login.forgotPassword") || "Forgot Password?"}
                 </Button>
               </div>
-
               <Button type="submit" className="w-full" disabled={loginLoading}>
                 {loginLoading ? t("Login.signingIn") : t("Login.signIn")}
               </Button>

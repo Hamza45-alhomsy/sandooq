@@ -4,7 +4,8 @@
 import { useSettings } from "@/hooks/useSettings";
 import { useState } from "react";
 import useSWR from "swr";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
+import { useRouter } from "@/i18n/routing";
 import { useTranslations } from "next-intl";
 import { fetcher } from "@/lib/api/fetcher";
 import { MainLayout } from "@/components/layout/MainLayout";
@@ -23,7 +24,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { DocumentUpload } from "@/components/orders/DocumentUpload";
-import { Download, File, Trash2, XCircle, Pencil } from "lucide-react";
+import { Download, File, XCircle, Pencil } from "lucide-react";
 
 export default function OrderDetailPage() {
   const t = useTranslations();
@@ -37,10 +38,7 @@ export default function OrderDetailPage() {
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectReason, setRejectReason] = useState("");
 
-  // Cancel dialog
-  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
-
-  const handleAction = async (action: "approve" | "execute") => {
+  const handleApprove = async (action: "approve") => {
     try {
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/api/orders/${id}/${action}`,
@@ -54,11 +52,7 @@ export default function OrderDetailPage() {
       );
 
       if (response.ok) {
-        toast.success(
-          action === "approve"
-            ? t("Common.approveSuccess")
-            : t("Common.executeSuccess"),
-        );
+        toast.success(action === "approve" ? t("Common.approveSuccess") : null);
         mutate();
       } else {
         const error = await response.json();
@@ -97,32 +91,6 @@ export default function OrderDetailPage() {
     }
   };
 
-  const handleCancel = async () => {
-    try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/orders/${id}/cancel`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        },
-      );
-
-      if (response.ok) {
-        toast.success("Order cancelled");
-        mutate();
-        setCancelDialogOpen(false);
-      } else {
-        const error = await response.json();
-        toast.error(error.error || "Failed to cancel order");
-      }
-    } catch (error) {
-      toast.error(t("Common.networkError"));
-    }
-  };
-
   if (!order)
     return (
       <MainLayout>
@@ -133,22 +101,14 @@ export default function OrderDetailPage() {
   const isOwner = order.userId === user?.id;
   const isAdmin = user?.permissions.includes("order:approve");
   const canApprove = isAdmin && order.status === "pending";
-  const canExecute = isAdmin && order.status === "approved";
   const canReject =
     isAdmin && (order.status === "pending" || order.status === "approved");
-  const canCancel =
-    (isOwner || isAdmin) &&
-    (order.status === "pending" || order.status === "approved") &&
-    order.status !== "executed";
 
   const statusMap: Record<string, string> = {
     pending: t("Common.pending"),
     approved: t("Common.approved"),
-    executed: t("Common.executed"),
     rejected: t("Common.rejected"),
-    cancelled: t("Common.cancelled"),
   };
-
   return (
     <MainLayout>
       <div className="max-w-4xl mx-auto">
@@ -272,7 +232,7 @@ export default function OrderDetailPage() {
           <div className="flex flex-wrap gap-2">
             {canApprove && (
               <Button
-                onClick={() => handleAction("approve")}
+                onClick={() => handleApprove("approve")}
                 className="flex-1"
               >
                 {t("OrderDetail.approve")}
@@ -286,25 +246,6 @@ export default function OrderDetailPage() {
               >
                 <XCircle className="mr-2 h-4 w-4" />
                 Reject
-              </Button>
-            )}
-            {canExecute && (
-              <Button
-                onClick={() => handleAction("execute")}
-                className="flex-1"
-                variant="default"
-              >
-                {t("OrderDetail.execute")}
-              </Button>
-            )}
-            {canCancel && (
-              <Button
-                variant="outline"
-                onClick={() => setCancelDialogOpen(true)}
-                className="flex-1 border-red-500 text-red-500 hover:bg-red-50"
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Cancel Order
               </Button>
             )}
             {isOwner && order.status === "pending" && (
@@ -349,29 +290,6 @@ export default function OrderDetailPage() {
             </Button>
             <Button variant="destructive" onClick={handleReject}>
               {t("OrderDetail.rejectDialog.confirm")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ===== CANCEL DIALOG ===== */}
-      <Dialog open={cancelDialogOpen} onOpenChange={setCancelDialogOpen}>
-        <DialogContent showCloseButton={false}>
-          <DialogHeader>
-            <DialogTitle>{t("OrderDetail.cancelDialog.title")}</DialogTitle>
-          </DialogHeader>
-          <p className="text-muted-foreground">
-            {t("OrderDetail.cancelDialog.description")}
-          </p>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setCancelDialogOpen(false)}
-            >
-              {t("OrderDetail.cancelDialog.goBack")}
-            </Button>
-            <Button variant="destructive" onClick={handleCancel}>
-              {t("OrderDetail.cancelDialog.confirm")}
             </Button>
           </DialogFooter>
         </DialogContent>

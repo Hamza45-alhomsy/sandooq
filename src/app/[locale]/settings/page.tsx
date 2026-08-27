@@ -11,31 +11,54 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 
 export default function SettingsPage() {
   const t = useTranslations();
-  const { token } = useAuth();
-  const { data: settings, isLoading } = useSWR("/api/settings", fetcher);
+  const { token, user } = useAuth();
+
+  // ✅ Only admins can manage settings
+  const canManageSettings = user?.permissions.includes("setting:manage");
+  const { data: settings, isLoading } = useSWR(
+    canManageSettings ? "/api/settings" : null,
+    fetcher,
+  );
+
   const [loading, setLoading] = useState(false);
 
-  // Find settings
+  // Find settings with fallbacks
   const companyName =
     settings?.find((s: any) => s.key === "company_name")?.value || "";
   const currency =
     settings?.find((s: any) => s.key === "currency")?.value || "SYP";
+  const requireApproval =
+    settings?.find((s: any) => s.key === "require_approval")?.value !== "false";
 
   const [formData, setFormData] = useState({
-    companyName: companyName,
-    currency: currency,
+    companyName,
+    currency,
+    requireApproval,
   });
 
-  if (isLoading)
+  if (isLoading) {
     return (
       <MainLayout>
         <div>{t("Common.loading")}</div>
       </MainLayout>
     );
+  }
+
+  if (!canManageSettings) {
+    return (
+      <MainLayout>
+        <div className="text-red-500">
+          {t("Settings.accessDenied") ||
+            "Access Denied: You do not have permission to manage settings."}
+        </div>
+      </MainLayout>
+    );
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,6 +68,7 @@ export default function SettingsPage() {
       const updates = [
         { key: "company_name", value: formData.companyName },
         { key: "currency", value: formData.currency },
+        { key: "require_approval", value: String(formData.requireApproval) },
       ];
 
       const response = await fetch(
@@ -101,6 +125,25 @@ export default function SettingsPage() {
                   setFormData({ ...formData, currency: e.target.value })
                 }
                 placeholder="SYP"
+              />
+            </div>
+
+            {/* ✅ Require Approval Toggle */}
+            <div className="flex items-center justify-between py-2">
+              <div>
+                <Label className="text-base">
+                  {t("Settings.requireApproval")}
+                </Label>
+                <p className="text-sm text-muted-foreground">
+                  {t("Settings.requireApprovalDesc") ||
+                    "When enabled, all orders need admin approval before execution."}
+                </p>
+              </div>
+              <Switch
+                checked={formData.requireApproval}
+                onCheckedChange={(checked) =>
+                  setFormData({ ...formData, requireApproval: checked })
+                }
               />
             </div>
 

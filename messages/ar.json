@@ -18,15 +18,12 @@
     "createSuccess": "تم إنشاء الطلب بنجاح",
     "createFailed": "فشل إنشاء الطلب",
     "approveSuccess": "تمت الموافقة على الطلب",
-    "executeSuccess": "تم تنفيذ الطلب",
     "operationFailed": "فشل العملية",
     "view": "عرض",
     "viewAll": "عرض الكل",
     "pending": "قيد الانتظار",
     "approved": "موافق عليه",
-    "executed": "منفذ",
     "rejected": "مرفوض",
-    "cancelled": "ملغي",
     "save": "حفظ التغييرات",
     "saving": "جاري الحفظ..."
   },
@@ -69,7 +66,6 @@
     "totalOrders": "إجمالي الطلبات",
     "pending": "قيد الانتظار",
     "approved": "موافق عليه",
-    "executed": "منفذ",
     "fundBalance": "رصيد الصندوق",
     "monthly": "شهرية",
     "recentOrders": "آخر الطلبات",
@@ -102,7 +98,6 @@
     "rejectionReason": "سبب الرفض",
     "editOrder": "تعديل الطلب",
     "reject": "رفض",
-    "cancelOrder": "إلغاء الطلب",
     "title": "تفاصيل الطلب",
     "orderNumber": "رقم الطلب",
     "description": "العنوان",
@@ -112,19 +107,12 @@
     "client": "العميل",
     "items": "العناصر",
     "approve": "الموافقة",
-    "execute": "تنفيذ",
     "rejectDialog": {
       "title": "رفض الطلب",
       "reason": "سبب الرفض",
       "reasonPlaceholder": "أدخل السبب (اختياري)",
       "confirm": "تأكيد الرفض",
       "cancel": "إلغاء"
-    },
-    "cancelDialog": {
-      "title": "إلغاء الطلب",
-      "description": "هل أنت متأكد من إلغاء هذا الطلب؟ لا يمكن التراجع عن هذا الإجراء.",
-      "confirm": "تأكيد الإلغاء",
-      "goBack": "رجوع"
     }
   },
   "CreateOrder": {
@@ -237,9 +225,7 @@
       "createOrder": "إنشاء طلب",
       "updateOrder": "تعديل طلب",
       "approveOrder": "الموافقة على طلب",
-      "executeOrder": "تنفيذ طلب",
       "rejectOrder": "رفض طلب",
-      "cancelOrder": "إلغاء طلب",
       "createUser": "إنشاء مستخدم",
       "updateUserRole": "تعديل دور مستخدم",
       "updateProfile": "تعديل الملف الشخصي",
@@ -259,7 +245,10 @@
     "save": "حفظ التغييرات",
     "saving": "جاري الحفظ...",
     "success": "تم تحديث الإعدادات بنجاح",
-    "error": "فشل تحديث الإعدادات"
+    "error": "فشل تحديث الإعدادات",
+    "requireApproval": "طلب الموافقة",
+    "requireApprovalDesc": "عند التفعيل، تحتاج جميع الطلبات إلى موافقة المشرف قبل التنفيذ.",
+    "accessDenied": "تم رفض الوصول: ليس لديك صلاحية لإدارة الإعدادات."
   },
   "Documents": {
     "title": "المستندات",

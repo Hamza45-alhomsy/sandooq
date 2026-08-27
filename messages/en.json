@@ -45,7 +45,7 @@
     "featureTitle": "Everything you need to manage your finances",
     "featureSubtitle": "Built for efficiency and designed for teams of all sizes",
     "feature1Title": "Order Management",
-    "feature1Desc": "Create, approve, and execute financial orders with a streamlined workflow.",
+    "feature1Desc": "Create and approve   financial orders with a streamlined workflow.",
     "feature2Title": "Fund Tracking",
     "feature2Desc": "Monitor your fund balance in real-time with full transaction history.",
     "feature3Title": "Approval Workflow",
@@ -74,15 +74,12 @@
     "createSuccess": "Order created successfully",
     "createFailed": "Failed to create order",
     "approveSuccess": "Order approved",
-    "executeSuccess": "Order executed",
     "operationFailed": "Operation failed",
     "view": "View",
     "viewAll": "View All",
     "pending": "Pending",
     "approved": "Approved",
-    "executed": "Executed",
     "rejected": "Rejected",
-    "cancelled": "Cancelled",
     "save": "Save Changes",
     "saving": "Saving..."
   },
@@ -91,7 +88,6 @@
     "totalOrders": "Total Orders",
     "pending": "Pending",
     "approved": "Approved",
-    "executed": "Executed",
     "fundBalance": "Fund Balance",
     "monthly": "Monthly Total",
     "recentOrders": "Recent Orders",
@@ -124,7 +120,6 @@
     "rejectionReason": "Rejection Reason",
     "editOrder": "Edit Order",
     "reject": "Reject",
-    "cancelOrder": "Cancel Order",
     "title": "Order Details",
     "orderNumber": "Order Number",
     "description": "Description",
@@ -134,19 +129,12 @@
     "client": "Client",
     "items": "Items",
     "approve": "Approve",
-    "execute": "Execute",
     "rejectDialog": {
       "title": "Reject Order",
       "reason": "Reason for rejection",
       "reasonPlaceholder": "Enter reason (optional)",
       "confirm": "Confirm Reject",
       "cancel": "Cancel"
-    },
-    "cancelDialog": {
-      "title": "Cancel Order",
-      "description": "Are you sure you want to cancel this order? This action cannot be undone.",
-      "confirm": "Confirm Cancel",
-      "goBack": "Go Back"
     }
   },
   "CreateOrder": {
@@ -259,9 +247,7 @@
       "createOrder": "Create Order",
       "updateOrder": "Update Order",
       "approveOrder": "Approve Order",
-      "executeOrder": "Execute Order",
       "rejectOrder": "Reject Order",
-      "cancelOrder": "Cancel Order",
       "createUser": "Create User",
       "updateUserRole": "Update User Role",
       "updateProfile": "Update Profile",
@@ -277,7 +263,10 @@
     "save": "Save Changes",
     "saving": "Saving...",
     "success": "Settings updated successfully",
-    "error": "Failed to update settings"
+    "error": "Failed to update settings",
+    "requireApproval": "Require Approval",
+    "requireApprovalDesc": "When enabled, all orders need admin approval before execution.",
+    "accessDenied": "Access Denied: You do not have permission to manage settings."
   },
   "Documents": {
     "title": "Documents",
