@@ -1,4 +1,4 @@
-// utils/audit.js — Audit log helper function
+// src/backend/utils/audit.js
 import prisma from "../config/database.js";
 import { getWorkspaceId } from "./workspace.js";
 
@@ -9,8 +9,10 @@ export async function createAuditLog(
   entityId,
   details,
   req,
-  transactionId = null,
+  orderId = null,
 ) {
+  const workspaceId = getWorkspaceId(req);
+
   return await prisma.auditLog.create({
     data: {
       userId,
@@ -21,9 +23,10 @@ export async function createAuditLog(
       ipAddress:
         req.ip ||
         req.headers["x-forwarded-for"] ||
-        req.connection.remoteAddress,
+        req.connection?.remoteAddress,
       userAgent: req.headers["user-agent"],
-      workspaceId: getWorkspaceId(req),
+      workspaceId,
+      orderId,
     },
   });
 }

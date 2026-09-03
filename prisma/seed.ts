@@ -3,29 +3,122 @@ import { PrismaClient } from "@prisma/client";
 import { initializeApp, cert } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
 import { readFileSync } from "fs";
-import { dirname, join } from "path";
+import { join, dirname } from "path";
 import { fileURLToPath } from "url";
 
-const prisma = new PrismaClient();
-
+// 🔥 Construct __dirname for ES modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Load service account JSON (same file your backend uses)
-const serviceAccount = JSON.parse(
-  readFileSync(join(__dirname, "../service-account-key.json"), "utf-8"),
-);
+const prisma = new PrismaClient();
 
-// Initialize Firebase Admin
+// ============ Firebase Admin Initialization ============
+const serviceAccountPath = join(__dirname, "../service-account-key.json");
+console.log(`📂 Loading service account from: ${serviceAccountPath}`);
+const serviceAccount = JSON.parse(readFileSync(serviceAccountPath, "utf-8"));
 initializeApp({
   credential: cert(serviceAccount),
 });
 const auth = getAuth();
 
+// ============ Helper: Create or Get Admin User ============
+async function getOrCreateAdminUser() {
+  const adminEmail = "admin@system.com";
+  const adminPassword = "Admin123!";
+  const adminFullName = "System Admin";
+
+  // Check if already exists
+  let adminUser = await prisma.user.findUnique({
+    where: { email: adminEmail },
+  });
+  if (adminUser) {
+    console.log(`✅ Admin user already exists in MySQL: ${adminEmail}`);
+    return adminUser;
+  }
+
+  // Create in Firebase
+  let firebaseUid: string;
+  try {
+    const firebaseUser = await auth.createUser({
+      email: adminEmail,
+      password: adminPassword,
+      displayName: adminFullName,
+    });
+    firebaseUid = firebaseUser.uid;
+    console.log(`✅ Firebase user created: ${firebaseUid}`);
+  } catch (error: any) {
+    if (error.code === "auth/email-already-exists") {
+      const existing = await auth.getUserByEmail(adminEmail);
+      firebaseUid = existing.uid;
+      console.log(`ℹ️ Firebase user already exists: ${firebaseUid}`);
+    } else {
+      throw error;
+    }
+  }
+
+  // Get admin role
+  const adminRole = await prisma.role.findUnique({
+    where: { name: "admin" },
+  });
+  if (!adminRole) throw new Error("Admin role not found");
+
+  // Create in MySQL
+  adminUser = await prisma.user.create({
+    data: {
+      uid: firebaseUid,
+      email: adminEmail,
+      fullName: adminFullName,
+      roleId: adminRole.id,
+      isActive: true,
+    },
+  });
+  console.log(`✅ Admin user created in MySQL: ${adminEmail}`);
+  return adminUser;
+}
+
+// ============ Helper: Create Default Workspace ============
+async function createDefaultWorkspace(adminUserId: number) {
+  const workspaceName = "My Company";
+
+  // ✅ Use findFirst (not findUnique) and correct casing
+  let workspace = await prisma.Workspace.findFirst({
+    where: { name: workspaceName },
+  });
+
+  if (workspace) {
+    console.log(`✅ Workspace already exists: ${workspace.name}`);
+    return workspace;
+  }
+
+  workspace = await prisma.Workspace.create({
+    data: {
+      name: workspaceName,
+      ownerId: adminUserId,
+    },
+  });
+  console.log(`✅ Workspace created: ${workspace.name} (ID: ${workspace.id})`);
+
+  const adminRole = await prisma.role.findUnique({
+    where: { name: "admin" },
+  });
+  if (!adminRole) throw new Error("Admin role not found.");
+
+  await prisma.WorkspaceMember.create({
+    data: {
+      userId: adminUserId,
+      workspaceId: workspace.id,
+      roleId: adminRole.id,
+    },
+  });
+  console.log(`✅ Admin added as member of workspace: ${workspace.name}`);
+  return workspace;
+}
+
+// ============ Main Seed Function ============
 async function main() {
   console.log("🌱 Seeding database...");
 
-  // ========== 1. Create Roles ==========
+  // --- 1. Roles ---
   await prisma.role.createMany({
     data: [
       { name: "admin", description: "System Administrator" },
@@ -42,18 +135,18 @@ async function main() {
   const clientRole = await prisma.role.findUnique({
     where: { name: "client" },
   });
-
   if (!adminRole || !investorRole || !clientRole) {
     throw new Error("Roles not found after creation");
   }
 
-  // ========== 2. Create Permissions ==========
+  // --- 2. Permissions ---
   const permissions = [
-    { roleId: adminRole.id, resource: "transaction", action: "view_all" },
-    { roleId: adminRole.id, resource: "transaction", action: "create" },
-    { roleId: adminRole.id, resource: "transaction", action: "approve" },
-    { roleId: adminRole.id, resource: "transaction", action: "reject" },
-    { roleId: adminRole.id, resource: "transaction", action: "delete" },
+    // Admin
+    { roleId: adminRole.id, resource: "order", action: "view_all" },
+    { roleId: adminRole.id, resource: "order", action: "create" },
+    { roleId: adminRole.id, resource: "order", action: "approve" },
+    { roleId: adminRole.id, resource: "order", action: "execute" },
+    { roleId: adminRole.id, resource: "order", action: "delete" },
     { roleId: adminRole.id, resource: "user", action: "manage" },
     { roleId: adminRole.id, resource: "fund", action: "view" },
     { roleId: adminRole.id, resource: "fund", action: "manage" },
@@ -61,12 +154,13 @@ async function main() {
     { roleId: adminRole.id, resource: "report", action: "export" },
     { roleId: adminRole.id, resource: "audit", action: "view" },
     { roleId: adminRole.id, resource: "setting", action: "manage" },
-    { roleId: adminRole.id, resource: "category", action: "manage" },
-    { roleId: investorRole.id, resource: "transaction", action: "view_all" },
+    // Investor
+    { roleId: investorRole.id, resource: "order", action: "view_all" },
     { roleId: investorRole.id, resource: "fund", action: "view" },
     { roleId: investorRole.id, resource: "report", action: "view" },
-    { roleId: clientRole.id, resource: "transaction", action: "create" },
-    { roleId: clientRole.id, resource: "transaction", action: "view_own" },
+    // Client
+    { roleId: clientRole.id, resource: "order", action: "create" },
+    { roleId: clientRole.id, resource: "order", action: "view_own" },
   ];
 
   await prisma.permission.createMany({
@@ -74,59 +168,40 @@ async function main() {
     skipDuplicates: true,
   });
 
-  // ========== 3. Create Categories ==========
+  // --- 3. Categories ---
   const categories = [
-    { name: "Investment Returns", nameAr: "عوائد الاستثمار", type: "income" },
-    { name: "Project Income", nameAr: "إيرادات المشاريع", type: "income" },
-    { name: "Management Fees", nameAr: "رسوم الإدارة", type: "income" },
-    { name: "Operational", nameAr: "تشغيلية", type: "expense" },
-    { name: "Salaries", nameAr: "الرواتب", type: "expense" },
-    { name: "Marketing", nameAr: "التسويق", type: "expense" },
-    { name: "Technology", nameAr: "التقنية", type: "expense" },
-    {
-      name: "Professional Services",
-      nameAr: "الخدمات المهنية",
-      type: "expense",
-    },
-    { name: "Travel", nameAr: "السفر", type: "expense" },
-    { name: "Office", nameAr: "المكتب", type: "expense" },
-    { name: "Other Income", nameAr: "إيرادات أخرى", type: "income" },
-    { name: "Other Expenses", nameAr: "مصروفات أخرى", type: "expense" },
+    { name: "Investment Returns", type: "income" },
+    { name: "Project Income", type: "income" },
+    { name: "Management Fees", type: "income" },
+    { name: "Operational", type: "expense" },
+    { name: "Salaries", type: "expense" },
+    { name: "Marketing", type: "expense" },
+    { name: "Technology", type: "expense" },
+    { name: "Professional Services", type: "expense" },
+    { name: "Travel", type: "expense" },
+    { name: "Office", type: "expense" },
+    { name: "Other Income", type: "income" },
+    { name: "Other Expenses", type: "expense" },
   ];
 
-  for (const category of categories) {
-    await prisma.category.upsert({
-      where: { name: category.name },
-      update: { nameAr: category.nameAr },
-      create: category,
-    });
-  }
+  await prisma.category.createMany({
+    data: categories,
+    skipDuplicates: true,
+  });
 
-  // ========== 4. Create default Fund ==========
+  // --- 4. Fund ---
   await prisma.fund.createMany({
     data: [{ id: 1, name: "Main Fund", currentBalance: 0, currency: "SYP" }],
     skipDuplicates: true,
   });
 
-  // ========== 5. Create Settings ==========
+  // --- 5. Settings ---
   const settings = [
-    {
-      key: "company_name_en",
-      value: "My Company",
-      group: "company",
-      description: "English company name",
-    },
-    {
-      key: "company_name_ar",
-      value: "شركتي",
-      group: "company",
-      description: "Arabic company name",
-    },
     {
       key: "company_name",
       value: "My Company",
       group: "company",
-      description: "Legacy company name",
+      description: "Company name",
     },
     { key: "currency", value: "SYP", group: "financial" },
     { key: "require_approval", value: "true", group: "system" },
@@ -137,65 +212,22 @@ async function main() {
     skipDuplicates: true,
   });
 
-  // ========== 6. Create or repair the Admin User (Firebase + MySQL) ==========
-  const adminEmail = "admin@system.com";
-  const adminPassword = "Admin123!";
-  const adminFullName = "System Admin";
+  // --- 6. Create Admin User ---
+  const adminUser = await getOrCreateAdminUser();
 
-  let firebaseUser;
-  try {
-    firebaseUser = await auth.getUserByEmail(adminEmail);
-    console.log(`ℹ️ Firebase admin user already exists: ${firebaseUser.uid}`);
-  } catch (error: any) {
-    if (error.code === "auth/user-not-found") {
-      firebaseUser = await auth.createUser({
-        email: adminEmail,
-        password: adminPassword,
-        displayName: adminFullName,
-      });
-      console.log(`✅ Firebase admin user created: ${firebaseUser.uid}`);
-    } else {
-      throw error;
-    }
-  }
+  // --- 7. Create Default Workspace for Admin ---
+  await createDefaultWorkspace(adminUser.id);
 
-  const adminUser = await prisma.user.upsert({
-    where: { email: adminEmail },
-    update: {
-      uid: firebaseUser.uid,
-      fullName: adminFullName,
-      roleId: adminRole.id,
-      phone: null,
-      isActive: true,
-    },
-    create: {
-      uid: firebaseUser.uid,
-      email: adminEmail,
-      fullName: adminFullName,
-      roleId: adminRole.id,
-      phone: null,
-      isActive: true,
-    },
-  });
-
-  if (adminUser.roleId !== adminRole.id) {
-    await prisma.user.update({
-      where: { id: adminUser.id },
-      data: { roleId: adminRole.id, isActive: true },
-    });
-  }
-
-  console.log("✅ Admin user ensured in MySQL with admin role");
   console.log("✅ Seeding complete!");
-  console.log(`👑 Admin credentials: ${adminEmail} / ${adminPassword}`);
+  console.log("👑 Admin credentials: admin@system.com / Admin123!");
+  console.log("🏢 Default workspace: 'My Company' created and linked.");
 }
 
 main()
   .catch((e) => {
-    console.error(e);
+    console.error("❌ Seeding failed:", e);
     process.exit(1);
   })
   .finally(async () => {
     await prisma.$disconnect();
-    process.exit(0);
   });

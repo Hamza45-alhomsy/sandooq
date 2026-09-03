@@ -1,5 +1,6 @@
 // src/app/[locale]/users/page.tsx
 "use client";
+import { InviteUserDialog } from "@/components/workspace/InviteUserDialog";
 
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -258,6 +259,8 @@ export default function UsersPage() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
         <h1 className="text-2xl font-bold">{t("Users.title")}</h1>
         <Dialog open={open} onOpenChange={setOpen}>
+          <InviteUserDialog />
+
           <DialogTrigger className={cn(buttonVariants(), "w-full sm:w-auto")}>
             {t("Users.newUser")}
           </DialogTrigger>

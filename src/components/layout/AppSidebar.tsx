@@ -1,24 +1,21 @@
+// src/components/layout/AppSidebar.tsx
 "use client";
-import { useRouter } from "@/i18n/routing";
-import { useSettings } from "@/hooks/useSettings";
 
+import { useAuth } from "@/contexts/AuthContext";
+import { useSettings } from "@/hooks/useSettings";
 import {
   Sidebar,
   SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
+  SidebarFooter,
+  SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarFooter,
-  SidebarHeader,
 } from "@/components/ui/sidebar";
-import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
-import { Link, usePathname } from "@/i18n/routing";
-import { useTranslations, useLocale } from "next-intl";
-import { LanguageToggle } from "@/components/LanguageToggle";
+import { useRouter } from "@/i18n/routing";
+import { useTranslations } from "next-intl";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   LayoutDashboard,
   Package,
@@ -29,53 +26,48 @@ import {
   LogOut,
   Moon,
   Sun,
-  User,
-  ChevronDown,
-  Plus,
 } from "lucide-react";
 import { useTheme } from "@teispace/next-themes";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuGroup,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { LanguageToggle } from "@/components/LanguageToggle";
+import { useState, useEffect } from "react";
+import { Link } from "@/i18n/routing";
 
 export function AppSidebar() {
-  const router = useRouter();
-  const { companyName } = useSettings();
-
   const { user, logout, switchWorkspace } = useAuth();
-  const pathname = usePathname();
+  const { companyName } = useSettings();
+  const router = useRouter();
   const t = useTranslations("Sidebar");
-  const locale = useLocale();
   const { theme, setTheme } = useTheme();
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState<number | null>(
+    null,
+  );
 
-  const side = locale === "ar" ? "right" : "left";
-  const userInitial = user?.fullName?.charAt(0)?.toUpperCase() || "?";
+  useEffect(() => {
+    const stored = localStorage.getItem("activeWorkspaceId");
+    if (stored) {
+      setActiveWorkspaceId(parseInt(stored, 10));
+    } else if (user?.workspaces && user.workspaces.length > 0) {
+      // If no stored workspace, default to the first one
+      const first = user.workspaces[0].id;
+      setActiveWorkspaceId(first);
+      localStorage.setItem("activeWorkspaceId", String(first));
+    }
+  }, [user]);
+
+  const handleWorkspaceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const workspaceId = parseInt(e.target.value, 10);
+    setActiveWorkspaceId(workspaceId);
+    localStorage.setItem("activeWorkspaceId", String(workspaceId));
+    switchWorkspace(workspaceId);
+  };
 
   const navItems = [
     { href: "/dashboard", label: t("dashboard"), icon: LayoutDashboard },
-    { href: "/transactions", label: t("transactions"), icon: Package },
+    { href: "/orders", label: t("orders"), icon: Package },
   ];
 
   if (user?.permissions.includes("fund:view")) {
     navItems.push({ href: "/fund", label: t("fund"), icon: Wallet });
-  }
-
-  if (
-    user?.role === "investor" ||
-    user?.permissions.includes("transaction:view_all")
-  ) {
-    navItems.push({
-      href: "/investor",
-      label: t("investorDashboard"), // ✅ Now translated
-      icon: LayoutDashboard,
-    });
   }
 
   if (user?.permissions.includes("user:manage")) {
@@ -88,15 +80,18 @@ export function AppSidebar() {
     navItems.push({ href: "/settings", label: t("settings"), icon: Settings });
   }
 
-  const toggleTheme = () => {
-    setTheme(theme === "dark" ? "light" : "dark");
-  };
+  const toggleTheme = () => setTheme(theme === "dark" ? "light" : "dark");
+
+  const userInitial = user?.fullName?.charAt(0)?.toUpperCase() || "?";
+
+  const currentWorkspace = user?.workspaces?.find(
+    (w: any) => w.id === activeWorkspaceId,
+  );
 
   return (
     <Sidebar
       collapsible="icon"
       variant="inset"
-      side={side}
       className="border-l min-w-0 max-w-[--sidebar-width] overflow-hidden shrink-0"
       style={{
         width: "var(--sidebar-width)",
@@ -106,112 +101,60 @@ export function AppSidebar() {
     >
       <SidebarHeader className="border-b p-4">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="text-xl font-bold truncate"> {companyName}</span>
+          <span className="text-xl font-bold truncate">💰 {companyName}</span>
         </div>
-        {user && user.workspaces?.length > 1 && (
-          <select
-            aria-label={t("workspace")}
-            value={user.workspace.id}
-            onChange={(event) => switchWorkspace(Number(event.target.value))}
-            className="mt-3 h-9 w-full min-w-0 rounded-md border border-input bg-background px-2 text-sm"
-          >
-            {user.workspaces.map((workspace) => (
-              <option key={workspace.id} value={workspace.id}>
-                {workspace.name}
-              </option>
-            ))}
-          </select>
-        )}
       </SidebarHeader>
 
+      {/* Workspace Selector */}
+      <div className="border-b p-3">
+        <select
+          className="w-full rounded-md border bg-background p-2 text-sm"
+          value={activeWorkspaceId ?? ""}
+          onChange={handleWorkspaceChange}
+        >
+          <option value="">Select Workspace</option>
+          {user?.workspaces?.map((ws: any) => (
+            <option key={ws.id} value={ws.id}>
+              {ws.name}
+            </option>
+          ))}
+        </select>
+        <p className="text-xs text-muted-foreground mt-1">
+          {currentWorkspace?.name || "No workspace selected"}
+        </p>
+      </div>
+
       <SidebarContent>
-        {user?.permissions.includes("transaction:create") && (
-          <div className="px-2 pt-2">
-            <SidebarMenuButton
-              render={<Link href="/transactions/create" />}
-              tooltip={t("newTransaction")}
-              className="bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
-            >
-              <Plus className="h-4 w-4 shrink-0" />
-              <span className="truncate">{t("newTransaction")}</span>
-            </SidebarMenuButton>
-          </div>
-        )}
-        <SidebarGroup>
-          <SidebarGroupLabel className="truncate">
-            {t("mainMenu")}
-          </SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {navItems.map((item) => {
-                const isActive = pathname === item.href;
-                return (
-                  <SidebarMenuItem key={item.href}>
-                    <SidebarMenuButton
-                      render={<Link href={item.href} />}
-                      isActive={isActive}
-                    >
-                      <item.icon className="h-4 w-4 shrink-0" />
-                      <span className="truncate">{item.label}</span>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        <SidebarMenu>
+          {navItems.map((item) => {
+            const isActive = window.location.pathname.includes(item.href);
+            return (
+              <SidebarMenuItem key={item.href}>
+                <SidebarMenuButton
+                  render={<Link href={item.href} />}
+                  isActive={isActive}
+                >
+                  <item.icon className="h-4 w-4 shrink-0" />
+                  <span className="truncate">{item.label}</span>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            );
+          })}
+        </SidebarMenu>
       </SidebarContent>
 
       <SidebarFooter className="border-t p-4 space-y-2">
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <Button
-                variant="ghost"
-                className="w-full justify-start gap-2 px-2"
-              >
-                <Avatar className="h-7 w-7">
-                  <AvatarImage alt={user?.fullName} />
-                  <AvatarFallback>{userInitial}</AvatarFallback>
-                </Avatar>
-                <span className="truncate flex-1 text-left">
-                  {user?.fullName}
-                </span>
-                <ChevronDown className="h-4 w-4 text-muted-foreground" />
-              </Button>
-            }
-          />
-          <DropdownMenuContent side="top" align="start" className="w-56">
-            <DropdownMenuGroup>
-              <DropdownMenuLabel>
-                <div className="flex flex-col">
-                  <span className="font-medium">{user?.fullName}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {user?.email}
-                  </span>
-                </div>
-              </DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                render={
-                  <Link href="/profile" className="flex items-center">
-                    <User className="mr-2 h-4 w-4" />
-                    {t("profile") || "Profile"}
-                  </Link>
-                }
-              />
-              <DropdownMenuItem
-                onClick={async () => {
-                  await logout();
-                  router.push("/");
-                }}
-              >
-                <LogOut className="mr-2 h-4 w-4" />
-                {t("logout")}
-              </DropdownMenuItem>
-            </DropdownMenuGroup>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex items-center gap-2 px-2">
+          <Avatar className="h-7 w-7">
+            <AvatarFallback>{userInitial}</AvatarFallback>
+          </Avatar>
+          <div className="flex-1 truncate text-sm">
+            <p className="font-medium truncate">{user?.fullName}</p>
+            <p className="text-xs text-muted-foreground truncate">
+              {user?.role}
+            </p>
+          </div>
+        </div>
 
         <Button
           variant="outline"
@@ -233,6 +176,19 @@ export function AppSidebar() {
         </Button>
 
         <LanguageToggle />
+
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full justify-start gap-2"
+          onClick={async () => {
+            await logout();
+            router.push("/");
+          }}
+        >
+          <LogOut className="h-4 w-4" />
+          <span>{t("logout")}</span>
+        </Button>
       </SidebarFooter>
     </Sidebar>
   );

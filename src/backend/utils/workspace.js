@@ -1,29 +1,113 @@
-import crypto from "crypto";
+// src/backend/utils/workspace.js
 import prisma from "../config/database.js";
+import crypto from "crypto";
 
-export const getWorkspaceId = (req) => req.user?.workspaceId || null;
+/**
+ * Ensures the user has a valid workspace and attaches workspace info to req.user.
+ */
+export async function ensureWorkspace(req, res, next) {
+  try {
+    let workspaceId = req.headers["x-workspace-id"]
+      ? parseInt(req.headers["x-workspace-id"])
+      : null;
 
-export const ensureWorkspace = async (userId, name) => {
-  const existing = await prisma.workspaceMembership.findFirst({
-    where: { userId },
-    include: { workspace: true, role: { include: { permissions: true } } },
-    orderBy: { createdAt: "asc" },
-  });
-  if (existing) return existing;
-
-  const adminRole = await prisma.role.findUnique({ where: { name: "admin" } });
-  if (!adminRole) throw new Error("Admin role is not configured");
-
-  return prisma.$transaction(async (tx) => {
-    const workspace = await tx.workspace.create({
-      data: { name: name?.trim() || "My Company", ownerId: userId },
+    const userWorkspaces = await prisma.WorkspaceMember.findMany({
+      where: { userId: req.user.id },
+      include: { workspace: true },
     });
-    return tx.workspaceMember.create({
-      data: { workspaceId: workspace.id, userId, roleId: adminRole.id },
-      include: { workspace: true, role: { include: { permissions: true } } },
-    });
-  });
-};
 
-export const createInvitationToken = () =>
-  crypto.randomBytes(32).toString("hex");
+    if (userWorkspaces.length === 0) {
+      return res.status(403).json({
+        error: "You are not a member of any workspace.",
+      });
+    }
+
+    if (!workspaceId) {
+      workspaceId = userWorkspaces[0].workspaceId;
+    }
+
+    const membership = userWorkspaces.find(
+      (wm) => wm.workspaceId === workspaceId,
+    );
+
+    if (!membership) {
+      return res.status(403).json({
+        error: "You do not have access to this workspace.",
+      });
+    }
+
+    req.user.workspaceId = workspaceId;
+    req.user.workspaceRoleId = membership.roleId;
+    req.user.workspace = membership.workspace;
+
+    const role = await prisma.role.findUnique({
+      where: { id: membership.roleId },
+      include: { permissions: true },
+    });
+    req.user.workspacePermissions = role?.permissions || [];
+
+    next();
+  } catch (error) {
+    console.error("Workspace middleware error:", error);
+    return res.status(500).json({ error: "Workspace verification failed" });
+  }
+}
+
+// ✅ Get workspace ID from request
+export function getWorkspaceId(req) {
+  return req.user?.workspaceId || null;
+}
+
+// ✅ Generate a secure invitation token
+export function createInvitationToken() {
+  return crypto.randomBytes(32).toString("hex");
+}
+
+// ✅ Create a workspace invitation
+export async function createWorkspaceInvitation({
+  email,
+  workspaceId,
+  roleId,
+  invitedBy,
+  expiresInHours = 72, // default: 3 days
+}) {
+  const token = createInvitationToken();
+  const expiresAt = new Date(Date.now() + expiresInHours * 60 * 60 * 1000);
+
+  return await prisma.WorkspaceInvitation.create({
+    data: {
+      email,
+      token,
+      workspaceId,
+      roleId,
+      invitedBy,
+      expiresAt,
+      status: "pending",
+    },
+  });
+}
+
+// ✅ Verify an invitation token
+export async function verifyInvitationToken(token) {
+  const invitation = await prisma.WorkspaceInvitation.findUnique({
+    where: { token },
+    include: { workspace: true, role: true },
+  });
+
+  if (!invitation) {
+    return { valid: false, error: "Invitation not found" };
+  }
+
+  if (invitation.status !== "pending") {
+    return {
+      valid: false,
+      error: `Invitation is already ${invitation.status}`,
+    };
+  }
+
+  if (invitation.expiresAt < new Date()) {
+    return { valid: false, error: "Invitation has expired" };
+  }
+
+  return { valid: true, invitation };
+}
