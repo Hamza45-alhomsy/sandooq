@@ -49,11 +49,11 @@ async function main() {
 
   // ========== 2. Create Permissions ==========
   const permissions = [
-    { roleId: adminRole.id, resource: "order", action: "view_all" },
-    { roleId: adminRole.id, resource: "order", action: "create" },
-    { roleId: adminRole.id, resource: "order", action: "approve" },
-    { roleId: adminRole.id, resource: "order", action: "reject" },
-    { roleId: adminRole.id, resource: "order", action: "delete" },
+    { roleId: adminRole.id, resource: "transaction", action: "view_all" },
+    { roleId: adminRole.id, resource: "transaction", action: "create" },
+    { roleId: adminRole.id, resource: "transaction", action: "approve" },
+    { roleId: adminRole.id, resource: "transaction", action: "reject" },
+    { roleId: adminRole.id, resource: "transaction", action: "delete" },
     { roleId: adminRole.id, resource: "user", action: "manage" },
     { roleId: adminRole.id, resource: "fund", action: "view" },
     { roleId: adminRole.id, resource: "fund", action: "manage" },
@@ -61,11 +61,12 @@ async function main() {
     { roleId: adminRole.id, resource: "report", action: "export" },
     { roleId: adminRole.id, resource: "audit", action: "view" },
     { roleId: adminRole.id, resource: "setting", action: "manage" },
-    { roleId: investorRole.id, resource: "order", action: "view_all" },
+    { roleId: adminRole.id, resource: "category", action: "manage" },
+    { roleId: investorRole.id, resource: "transaction", action: "view_all" },
     { roleId: investorRole.id, resource: "fund", action: "view" },
     { roleId: investorRole.id, resource: "report", action: "view" },
-    { roleId: clientRole.id, resource: "order", action: "create" },
-    { roleId: clientRole.id, resource: "order", action: "view_own" },
+    { roleId: clientRole.id, resource: "transaction", action: "create" },
+    { roleId: clientRole.id, resource: "transaction", action: "view_own" },
   ];
 
   await prisma.permission.createMany({
@@ -75,24 +76,31 @@ async function main() {
 
   // ========== 3. Create Categories ==========
   const categories = [
-    { name: "Investment Returns", type: "income" },
-    { name: "Project Income", type: "income" },
-    { name: "Management Fees", type: "income" },
-    { name: "Operational", type: "expense" },
-    { name: "Salaries", type: "expense" },
-    { name: "Marketing", type: "expense" },
-    { name: "Technology", type: "expense" },
-    { name: "Professional Services", type: "expense" },
-    { name: "Travel", type: "expense" },
-    { name: "Office", type: "expense" },
-    { name: "Other Income", type: "income" },
-    { name: "Other Expenses", type: "expense" },
+    { name: "Investment Returns", nameAr: "عوائد الاستثمار", type: "income" },
+    { name: "Project Income", nameAr: "إيرادات المشاريع", type: "income" },
+    { name: "Management Fees", nameAr: "رسوم الإدارة", type: "income" },
+    { name: "Operational", nameAr: "تشغيلية", type: "expense" },
+    { name: "Salaries", nameAr: "الرواتب", type: "expense" },
+    { name: "Marketing", nameAr: "التسويق", type: "expense" },
+    { name: "Technology", nameAr: "التقنية", type: "expense" },
+    {
+      name: "Professional Services",
+      nameAr: "الخدمات المهنية",
+      type: "expense",
+    },
+    { name: "Travel", nameAr: "السفر", type: "expense" },
+    { name: "Office", nameAr: "المكتب", type: "expense" },
+    { name: "Other Income", nameAr: "إيرادات أخرى", type: "income" },
+    { name: "Other Expenses", nameAr: "مصروفات أخرى", type: "expense" },
   ];
 
-  await prisma.category.createMany({
-    data: categories,
-    skipDuplicates: true,
-  });
+  for (const category of categories) {
+    await prisma.category.upsert({
+      where: { name: category.name },
+      update: { nameAr: category.nameAr },
+      create: category,
+    });
+  }
 
   // ========== 4. Create default Fund ==========
   await prisma.fund.createMany({
@@ -103,10 +111,22 @@ async function main() {
   // ========== 5. Create Settings ==========
   const settings = [
     {
+      key: "company_name_en",
+      value: "My Company",
+      group: "company",
+      description: "English company name",
+    },
+    {
+      key: "company_name_ar",
+      value: "شركتي",
+      group: "company",
+      description: "Arabic company name",
+    },
+    {
       key: "company_name",
       value: "My Company",
       group: "company",
-      description: "Company name",
+      description: "Legacy company name",
     },
     { key: "currency", value: "SYP", group: "financial" },
     { key: "require_approval", value: "true", group: "system" },
@@ -117,73 +137,55 @@ async function main() {
     skipDuplicates: true,
   });
 
-  // ========== 6. Create the Admin User (Firebase + MySQL) ==========
+  // ========== 6. Create or repair the Admin User (Firebase + MySQL) ==========
   const adminEmail = "admin@system.com";
   const adminPassword = "Admin123!";
   const adminFullName = "System Admin";
 
+  let firebaseUser;
   try {
-    // Try to create the user in Firebase Auth
-    const firebaseUser = await auth.createUser({
-      email: adminEmail,
-      password: adminPassword,
-      displayName: adminFullName,
-    });
-    console.log(`✅ Firebase user created: ${firebaseUser.uid}`);
-
-    // Insert into MySQL
-    await prisma.user.create({
-      data: {
-        uid: firebaseUser.uid,
-        email: adminEmail,
-        fullName: adminFullName,
-        roleId: adminRole.id,
-        phone: null,
-        isActive: true,
-      },
-    });
-    console.log("✅ Admin user created in MySQL");
+    firebaseUser = await auth.getUserByEmail(adminEmail);
+    console.log(`ℹ️ Firebase admin user already exists: ${firebaseUser.uid}`);
   } catch (error: any) {
-    // If the user already exists in Firebase, fetch the UID and ensure MySQL entry exists
-    if (error.code === "auth/email-already-exists") {
-      console.log(`ℹ️ Admin user already exists in Firebase: ${adminEmail}`);
-      try {
-        const existingFirebaseUser = await auth.getUserByEmail(adminEmail);
-        // Check if user exists in MySQL
-        const existingMySQLUser = await prisma.user.findUnique({
-          where: { email: adminEmail },
-        });
-        if (!existingMySQLUser) {
-          await prisma.user.create({
-            data: {
-              uid: existingFirebaseUser.uid,
-              email: adminEmail,
-              fullName: adminFullName,
-              roleId: adminRole.id,
-              phone: null,
-              isActive: true,
-            },
-          });
-          console.log("✅ Admin user created in MySQL (Firebase existed)");
-        } else {
-          // Ensure the MySQL user has admin role
-          if (existingMySQLUser.roleId !== adminRole.id) {
-            await prisma.user.update({
-              where: { email: adminEmail },
-              data: { roleId: adminRole.id },
-            });
-            console.log("✅ Existing MySQL user promoted to admin");
-          }
-          console.log("✅ Admin user already exists in MySQL");
-        }
-      } catch (fetchError) {
-        console.error("Failed to fetch existing Firebase user:", fetchError);
-      }
+    if (error.code === "auth/user-not-found") {
+      firebaseUser = await auth.createUser({
+        email: adminEmail,
+        password: adminPassword,
+        displayName: adminFullName,
+      });
+      console.log(`✅ Firebase admin user created: ${firebaseUser.uid}`);
     } else {
-      console.error("Failed to create admin user:", error);
+      throw error;
     }
   }
 
+  const adminUser = await prisma.user.upsert({
+    where: { email: adminEmail },
+    update: {
+      uid: firebaseUser.uid,
+      fullName: adminFullName,
+      roleId: adminRole.id,
+      phone: null,
+      isActive: true,
+    },
+    create: {
+      uid: firebaseUser.uid,
+      email: adminEmail,
+      fullName: adminFullName,
+      roleId: adminRole.id,
+      phone: null,
+      isActive: true,
+    },
+  });
+
+  if (adminUser.roleId !== adminRole.id) {
+    await prisma.user.update({
+      where: { id: adminUser.id },
+      data: { roleId: adminRole.id, isActive: true },
+    });
+  }
+
+  console.log("✅ Admin user ensured in MySQL with admin role");
   console.log("✅ Seeding complete!");
   console.log(`👑 Admin credentials: ${adminEmail} / ${adminPassword}`);
 }

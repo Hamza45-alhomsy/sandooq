@@ -1,6 +1,9 @@
 "use client";
 import { useSettings } from "@/hooks/useSettings";
+import { useAuth } from "@/contexts/AuthContext";
+import { useRouter } from "@/i18n/routing";
 
+import { useEffect } from "react";
 import { useTranslations } from "next-intl";
 import { LanguageToggle } from "@/components/LanguageToggle";
 import { Button } from "@/components/ui/button";
@@ -20,10 +23,30 @@ import {
 } from "lucide-react";
 import { LoginDialog } from "@/components/LogInDialog";
 import { ThemeToggle } from "@/components/ThemeToggle";
+import { Spinner } from "@/components/ui/spinner";
 
 export default function LandingPage() {
   const t = useTranslations("Landing");
+  const router = useRouter();
+  const { user, loading } = useAuth();
   const { companyName, isLoading: settingsLoading } = useSettings();
+
+  useEffect(() => {
+    if (!loading && user) {
+      router.replace("/dashboard");
+    }
+  }, [user, loading, router]);
+
+  if (loading || user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <div className="flex flex-col items-center gap-3">
+          <Spinner className="h-12 w-12" />
+          <p className="text-sm text-muted-foreground">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
 
   const features = [
     {

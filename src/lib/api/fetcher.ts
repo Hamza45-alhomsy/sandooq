@@ -32,11 +32,16 @@ export const fetcher = async (url: string) => {
 
     let res;
     try {
+      const activeWorkspaceId =
+        typeof window !== "undefined"
+          ? window.localStorage.getItem("activeWorkspaceId")
+          : null;
       res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${url}`, {
         signal: controller.signal,
         headers: {
           Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
+          ...(activeWorkspaceId ? { "X-Workspace-Id": activeWorkspaceId } : {}),
         },
       });
       clearTimeout(timeout);

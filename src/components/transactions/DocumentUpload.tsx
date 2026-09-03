@@ -1,4 +1,4 @@
-// src/components/orders/DocumentUpload.tsx
+// src/components/transactions/DocumentUpload.tsx
 "use client";
 
 import { useState } from "react";
@@ -20,12 +20,12 @@ import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface DocumentUploadProps {
-  orderId: number;
+  transactionId: number;
   onUploadComplete?: () => void;
 }
 
 export function DocumentUpload({
-  orderId,
+  transactionId,
   onUploadComplete,
 }: DocumentUploadProps) {
   const t = useTranslations("Documents");
@@ -49,7 +49,7 @@ export function DocumentUpload({
     setLoading(true);
     const formData = new FormData();
     formData.append("file", file);
-    formData.append("orderId", String(orderId));
+    formData.append("transactionId", String(transactionId));
 
     try {
       const response = await fetch(

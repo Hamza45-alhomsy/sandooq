@@ -23,7 +23,7 @@ export function LanguageToggle() {
       className="gap-2"
     >
       <Globe className="h-4 w-4" />
-      {locale === "en" ? "🇸🇦 العربية" : "🇬🇧 English"}
+      {locale === "en" ? "العربية" : "English"}
     </Button>
   );
 }

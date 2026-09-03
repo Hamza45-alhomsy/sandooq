@@ -23,15 +23,19 @@ import { Badge } from "@/components/ui/badge";
 const actionMap: Record<string, string> = {
   LOGIN: "Audit.actions.login",
   LOGOUT: "Audit.actions.logout",
-  CREATE_ORDER: "Audit.actions.createOrder",
-  UPDATE_ORDER: "Audit.actions.updateOrder",
-  APPROVE_ORDER: "Audit.actions.approveOrder",
-  REJECT_ORDER: "Audit.actions.rejectOrder",
+  CREATE_TRANSACTION: "Audit.actions.createTransaction",
+  UPDATE_TRANSACTION: "Audit.actions.updateTransaction",
+  APPROVE_TRANSACTION: "Audit.actions.approveTransaction",
+  REJECT_TRANSACTION: "Audit.actions.rejectTransaction",
+  REJECT_TRANSACTION_REVERSAL: "Audit.actions.rejectTransactionReversal",
   CREATE_USER: "Audit.actions.createUser",
   UPDATE_USER_ROLE: "Audit.actions.updateUserRole",
   UPDATE_PROFILE: "Audit.actions.updateProfile",
   UPLOAD_DOCUMENT: "Audit.actions.uploadDocument",
   UPDATE_SETTINGS: "Audit.actions.updateSettings",
+  CREATE_CATEGORY: "Audit.actions.createCategory",
+  UPDATE_CATEGORY: "Audit.actions.updateCategory",
+  DELETE_CATEGORY: "Audit.actions.deleteCategory",
   REGISTER: "Audit.actions.register",
 };
 
@@ -57,10 +61,10 @@ export default function AuditPage() {
       );
     }) || [];
 
-  // Helper to get entity link (only for orders)
+  // Helper to get entity link (only for transactions)
   const getEntityLink = (log: any) => {
-    if (log.entityType === "Order" || log.entityType === "order") {
-      return `/orders/${log.entityId}`;
+    if (log.entityType === "Transaction" || log.entityType === "transaction") {
+      return `/transactions/${log.entityId}`;
     }
     if (log.entityType === "User" || log.entityType === "user") {
       return `/users`;

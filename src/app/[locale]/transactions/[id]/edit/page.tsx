@@ -25,7 +25,7 @@ import useSWR from "swr";
 import { fetcher } from "@/lib/api/fetcher";
 
 // Zod schema (matches backend)
-const orderSchema = z.object({
+const transactionSchema = z.object({
   type: z.enum(["income", "expense"]),
   description: z.string().optional(),
   items: z
@@ -39,18 +39,18 @@ const orderSchema = z.object({
     .min(1, "At least one item is required"),
 });
 
-type OrderFormData = z.infer<typeof orderSchema>;
+type TransactionFormData = z.infer<typeof transactionSchema>;
 
-export default function EditOrderPage() {
+export default function EditTransactionPage() {
   const t = useTranslations();
   const { token } = useAuth();
   const router = useRouter();
   const { id } = useParams();
   const {
-    data: order,
+    data: transaction,
     isLoading,
     mutate,
-  } = useSWR(`/api/orders/${id}`, fetcher);
+  } = useSWR(`/api/transactions/${id}`, fetcher);
   const [loading, setLoading] = useState(false);
   const [formKey, setFormKey] = useState(0); // force re-render on data change
 
@@ -62,8 +62,8 @@ export default function EditOrderPage() {
     setValue,
     reset,
     formState: { errors },
-  } = useForm<OrderFormData>({
-    resolver: zodResolver(orderSchema),
+  } = useForm<TransactionFormData>({
+    resolver: zodResolver(transactionSchema),
     defaultValues: {
       type: "expense",
       items: [{ description: "", quantity: 1, unitPrice: 0 }],
@@ -75,16 +75,16 @@ export default function EditOrderPage() {
     name: "items",
   });
 
-  // Load order data into form
+  // Load transaction data into form
   useEffect(() => {
-    if (order) {
-      setValue("type", order.type);
-      setValue("description", order.description || "");
-      // Clear default items and set from order
-      if (order.items && order.items.length > 0) {
+    if (transaction) {
+      setValue("type", transaction.type);
+      setValue("description", transaction.description || "");
+      // Clear default items and set from transaction
+      if (transaction.items && transaction.items.length > 0) {
         // Remove the default empty item
         remove(0);
-        order.items.forEach((item: any) => {
+        transaction.items.forEach((item: any) => {
           append({
             description: item.description,
             quantity: item.quantity,
@@ -94,19 +94,19 @@ export default function EditOrderPage() {
       }
       setFormKey((prev) => prev + 1);
     }
-  }, [order, setValue, append, remove]);
+  }, [transaction, setValue, append, remove]);
 
-  const onSubmit = async (data: OrderFormData) => {
+  const onSubmit = async (data: TransactionFormData) => {
     setLoading(true);
     try {
       // ✅ Send the current updatedAt timestamp for version check
       const payload = {
         ...data,
-        updatedAt: order.updatedAt,
+        updatedAt: transaction.updatedAt,
       };
 
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/orders/${id}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/transactions/${id}`,
         {
           method: "PUT",
           headers: {
@@ -120,21 +120,18 @@ export default function EditOrderPage() {
       // 🔐 Handle conflict (409)
       if (response.status === 409) {
         const error = await response.json();
-        toast.error(
-          error.error ||
-            "The order was modified by another user. Please refresh.",
-        );
-        // Refresh order data and re-populate form
+        toast.error(error.error || t("TransactionDetail.updateConflict"));
+        // Refresh transaction data and re-populate form
         await mutate();
         return;
       }
 
       if (response.ok) {
-        toast.success("Order updated successfully");
-        router.push(`/orders/${id}`);
+        toast.success(t("TransactionDetail.updateSuccess"));
+        router.push(`/transactions/${id}`);
       } else {
         const error = await response.json();
-        toast.error(error.error || "Failed to update order");
+        toast.error(error.error || t("TransactionDetail.updateFailed"));
       }
     } catch (error) {
       toast.error(t("Common.networkError"));
@@ -156,24 +153,24 @@ export default function EditOrderPage() {
     );
   }
 
-  if (!order) {
+  if (!transaction) {
     return (
       <MainLayout>
-        <div>Order not found</div>
+        <div>{t("TransactionDetail.notFound")}</div>
       </MainLayout>
     );
   }
 
-  // Only pending orders can be edited
-  if (order.status !== "pending") {
+  // Only pending transactions can be edited
+  if (transaction.status !== "pending") {
     return (
       <MainLayout>
         <div className="text-center py-8">
           <p className="text-muted-foreground">
-            This order can no longer be edited because it is no longer pending.
+            {t("TransactionDetail.noLongerPending")}
           </p>
-          <Button className="mt-4" onClick={() => router.push(`/orders/${id}`)}>
-            View Order
+          <Button className="mt-4" onClick={() => router.push(`/transactions/${id}`)}>
+            {t("TransactionDetail.view")}
           </Button>
         </div>
       </MainLayout>
@@ -184,7 +181,9 @@ export default function EditOrderPage() {
     <MainLayout>
       <div className="max-w-3xl mx-auto">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold">Edit Order {order.orderNumber}</h1>
+          <h1 className="text-2xl font-bold">
+            {t("TransactionDetail.editTransaction")} {transaction.transactionNumber}
+          </h1>
           <Button variant="outline" onClick={() => router.back()}>
             {t("Common.back")}
           </Button>
@@ -193,20 +192,20 @@ export default function EditOrderPage() {
         <form onSubmit={handleSubmit(onSubmit)} key={formKey}>
           <Card>
             <CardHeader>
-              <CardTitle>Order Information</CardTitle>
+              <CardTitle>{t("CreateTransaction.transactionInfo")}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Type */}
               <div>
-                <Label>Order Type</Label>
+                <Label>{t("CreateTransaction.transactionType")}</Label>
                 <Select
                   onValueChange={(value) =>
                     setValue("type", value as "income" | "expense")
                   }
-                  defaultValue={order.type}
+                  defaultValue={transaction.type}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select type" />
+                    <SelectValue placeholder={t("CreateTransaction.selectType")} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="income">{t("Common.income")}</SelectItem>
@@ -224,10 +223,10 @@ export default function EditOrderPage() {
 
               {/* Description */}
               <div>
-                <Label>Description</Label>
+                <Label>{t("CreateTransaction.description")}</Label>
                 <Input
                   {...register("description")}
-                  placeholder="Order description (optional)"
+                  placeholder={t("CreateTransaction.descriptionPlaceholder")}
                 />
               </div>
 

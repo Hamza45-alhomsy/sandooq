@@ -24,6 +24,8 @@ export interface User {
   permissions: string[];
   isActive: boolean;
   phone?: string;
+  workspace: { id: number; name: string; role: string };
+  workspaces: { id: number; name: string; role: string }[];
 }
 
 interface AuthContextType {
@@ -31,9 +33,11 @@ interface AuthContextType {
   loading: boolean;
   token: string | null;
   logout: () => Promise<void>;
+  switchWorkspace: (workspaceId: number) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
@@ -58,14 +62,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const idToken = await firebaseUser.getIdToken(true);
             setToken(idToken);
 
-            const res = await fetch(
-              `${process.env.NEXT_PUBLIC_API_URL}/api/auth/verify`,
-              {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ token: idToken }),
-              },
-            );
+            const res = await fetch(`${API_URL}/api/auth/verify`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ token: idToken }),
+            });
 
             if (res.status === 401 || res.status === 403) {
               console.warn("Token invalid or user disabled.");
@@ -121,14 +122,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           } else {
             console.error("Failed to get ID token");
           }
-          const res = await fetch(
-            `${process.env.NEXT_PUBLIC_API_URL}/api/auth/verify`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ token: idToken }),
-            },
-          );
+          const res = await fetch(`${API_URL}/api/auth/verify`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ token: idToken }),
+          });
           console.log("📡 3. /api/auth/verify status:", res.status);
 
           if (res.ok) {
@@ -166,8 +164,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(null);
   };
 
+  const switchWorkspace = (workspaceId: number) => {
+    window.localStorage.setItem("activeWorkspaceId", String(workspaceId));
+    window.location.reload();
+  };
+
   return (
-    <AuthContext.Provider value={{ user, loading, token, logout }}>
+    <AuthContext.Provider
+      value={{ user, loading, token, logout, switchWorkspace }}
+    >
       {children}
     </AuthContext.Provider>
   );

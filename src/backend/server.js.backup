@@ -1,0 +1,1499 @@
+// server.js — ES Module version with Local File Storage
+import express from "express";
+import cors from "cors";
+import { PrismaClient } from "@prisma/client";
+import multer from "multer";
+import { z } from "zod";
+import { randomBytes } from "crypto";
+import { readFileSync } from "fs";
+import fs from "fs";
+import dotenv from "dotenv";
+import { dirname, join } from "path";
+import { fileURLToPath } from "url";
+
+// Firebase Admin (modular)
+import { initializeApp, cert } from "firebase-admin/app";
+import { getAuth } from "firebase-admin/auth";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Load service account JSON
+const serviceAccount = JSON.parse(
+  readFileSync(join(__dirname, "../../service-account-key.json"), "utf-8"),
+);
+console.log("🔑 Service account project ID:", serviceAccount.project_id);
+
+// Load .env from project root
+const envPath = join(__dirname, "../../.env");
+dotenv.config({ path: envPath });
+
+console.log("✅ Environment loaded from:", envPath);
+
+// ============ INITIALIZE ============
+const app = express();
+const prisma = new PrismaClient();
+
+// Firebase Admin
+initializeApp({
+  credential: cert(serviceAccount),
+});
+const auth = getAuth();
+
+// ============ MIDDLEWARE ============
+app.use(
+  cors({
+    origin: ["http://localhost:3000"],
+    credentials: true,
+  }),
+);
+app.use(express.json());
+
+// 📁 Serve uploaded files statically
+app.use("/uploads", express.static("uploads"));
+
+// 📁 Multer: Save files to disk
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const dir = "./uploads";
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+    cb(null, dir);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(null, uniqueSuffix + "-" + file.originalname);
+  },
+});
+
+const upload = multer({
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
+});
+
+// ============ TEMPORARY DEBUG ROUTE ============
+app.post("/api/debug-verify", async (req, res) => {
+  try {
+    const { token } = req.body;
+    const decoded = await auth.verifyIdToken(token);
+    res.json({ success: true, decoded });
+  } catch (error) {
+    res.status(401).json({
+      error: error.message,
+      code: error.code,
+      details: error.toString(),
+    });
+  }
+});
+
+// ============ AUTH MIDDLEWARE ============
+const requireAuth = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    console.log(
+      "🔑 Auth header:",
+      authHeader ? authHeader.slice(0, 30) + "..." : "No header",
+    );
+
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      console.log("❌ No Bearer token found");
+      return res.status(401).json({ error: "No token provided" });
+    }
+
+    const token = authHeader.split("Bearer ")[1];
+    console.log("📩 Token from header:", token.slice(0, 20) + "...");
+
+    // ✅ Try to verify the token
+    let decodedToken;
+    try {
+      decodedToken = await auth.verifyIdToken(token);
+      console.log("✅ Token verified for UID:", decodedToken.uid);
+    } catch (verifyError) {
+      console.error("❌ Token verification failed:", verifyError.message);
+      return res
+        .status(401)
+        .json({ error: "Invalid token: " + verifyError.message });
+    }
+
+    const user = await prisma.user.findUnique({
+      where: { uid: decodedToken.uid },
+      include: {
+        role: {
+          include: {
+            permissions: true,
+          },
+        },
+      },
+    });
+
+    if (!user || !user.isActive) {
+      return res.status(403).json({ error: "Account not found or inactive" });
+    }
+
+    req.user = {
+      ...user,
+      permissions: user.role.permissions.map(
+        (permission) => `${permission.resource}:${permission.action}`,
+      ),
+    };
+
+    next();
+  } catch (error) {
+    console.error("❌ Auth middleware error:", error);
+    return res.status(401).json({ error: "Invalid token" });
+  }
+}; // ============ PERMISSION MIDDLEWARE ============
+const requirePermission = (resource, action) => {
+  return async (req, res, next) => {
+    try {
+      const permission = await prisma.permission.findFirst({
+        where: {
+          roleId: req.user.roleId,
+          resource: resource,
+          action: action,
+        },
+      });
+
+      if (!permission) {
+        return res
+          .status(403)
+          .json({ error: `Missing permission: ${resource}:${action}` });
+      }
+      next();
+    } catch (error) {
+      console.error("Permission error:", error);
+      res.status(500).json({ error: "Permission check failed" });
+    }
+  };
+};
+
+// ============ HELPERS ============
+function generateOrderNumber() {
+  const date = new Date();
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  const rand = randomBytes(4).toString("hex").toUpperCase();
+  return `ORD-${y}${m}${d}-${rand}`;
+}
+
+async function createAuditLog(
+  userId,
+  action,
+  entityType,
+  entityId,
+  details,
+  req,
+  orderId = null,
+) {
+  return await prisma.auditLog.create({
+    data: {
+      userId,
+      action,
+      entityType,
+      entityId,
+      details: details || {},
+      ipAddress:
+        req.ip ||
+        req.headers["x-forwarded-for"] ||
+        req.connection.remoteAddress,
+      userAgent: req.headers["user-agent"],
+    },
+  });
+}
+
+// ============ HEALTH CHECK ============
+app.get("/api/test", (req, res) => {
+  res.json({ status: "OK", message: "Cash Flow API is running" });
+});
+
+// ============ AUTH ============
+app.post("/api/auth/verify", async (req, res) => {
+  try {
+    const { token } = req.body;
+    if (!token) return res.status(400).json({ error: "Token required" });
+
+    const decodedToken = await auth.verifyIdToken(token);
+    const firebaseUid = decodedToken.uid;
+    const email = decodedToken.email || "";
+    console.log(
+      "📩 Token received:",
+      token ? token.slice(0, 20) + "..." : "No token",
+    );
+
+    // 1. Find existing user by UID
+    let user = await prisma.user.findUnique({
+      where: { uid: firebaseUid },
+      include: {
+        role: {
+          include: {
+            permissions: true,
+          },
+        },
+      },
+    });
+
+    // 2. If not found by UID, try to find by email (for linking)
+    if (!user && email) {
+      const existingUserByEmail = await prisma.user.findUnique({
+        where: { email: email },
+        include: {
+          role: {
+            include: {
+              permissions: true,
+            },
+          },
+        },
+      });
+
+      if (existingUserByEmail) {
+        // Link the existing user to the new Firebase UID
+        console.log(
+          `Linking existing user (${email}) to new UID: ${firebaseUid}`,
+        );
+        user = await prisma.user.update({
+          where: { id: existingUserByEmail.id },
+          data: {
+            uid: firebaseUid,
+            fullName: decodedToken.name || existingUserByEmail.fullName,
+            isActive: true,
+          },
+          include: {
+            role: {
+              include: {
+                permissions: true,
+              },
+            },
+          },
+        });
+        // Log the linking event
+        await createAuditLog(
+          user.id,
+          "LINK_ACCOUNT",
+          "User",
+          user.id,
+          { email: user.email, provider: "google" },
+          req,
+        );
+      }
+    }
+
+    // 3. If still no user, create a new one
+    if (!user) {
+      console.log(`Auto‑creating user for UID: ${firebaseUid}`);
+
+      const defaultRole = await prisma.role.findUnique({
+        where: { name: "client" },
+      });
+      const roleId = defaultRole?.id || 3; // fallback to 3
+
+      const displayName =
+        decodedToken.name || decodedToken.email?.split("@")[0] || "New User";
+
+      user = await prisma.user.create({
+        data: {
+          uid: firebaseUid,
+          email: email,
+          fullName: displayName,
+          roleId: roleId,
+          phone: null,
+          isActive: true,
+        },
+        include: {
+          role: {
+            include: {
+              permissions: true,
+            },
+          },
+        },
+      });
+
+      // Log the registration
+      await createAuditLog(
+        user.id,
+        "REGISTER",
+        "User",
+        user.id,
+        { email: user.email, provider: "google" },
+        req,
+      );
+    }
+
+    // 4. Check active status
+    if (!user.isActive) {
+      return res.status(403).json({
+        error: "Account deactivated.",
+        exists: true,
+        isActive: false,
+      });
+    }
+
+    // 5. Log login
+    await createAuditLog(
+      user.id,
+      "LOGIN",
+      "User",
+      user.id,
+      { email: user.email },
+      req,
+    );
+
+    // 6. Return user data
+    res.json({
+      user: {
+        id: user.id,
+        email: user.email,
+        fullName: user.fullName,
+        phone: user.phone || null,
+        role: user.role.name,
+        permissions: user.role.permissions.map(
+          (p) => `${p.resource}:${p.action}`,
+        ),
+        isActive: user.isActive,
+      },
+    });
+  } catch (error) {
+    console.error("Verification error:", error);
+    res.status(401).json({ error: "Invalid token" });
+  }
+});
+// ============ PUBLIC REGISTRATION ============
+app.post("/api/auth/register", async (req, res) => {
+  try {
+    const schema = z.object({
+      email: z.string().email(),
+      password: z.string().min(6),
+      fullName: z.string().min(2),
+      phone: z.string().optional(),
+    });
+
+    const data = schema.parse(req.body);
+
+    const existingUser = await prisma.user.findUnique({
+      where: { email: data.email },
+    });
+    if (existingUser) {
+      return res.status(409).json({ error: "Email already registered" });
+    }
+
+    const firebaseUser = await auth.createUser({
+      email: data.email,
+      password: data.password,
+      displayName: data.fullName,
+    });
+
+    const defaultRole = await prisma.role.findUnique({
+      where: { name: "client" },
+    });
+    const roleId = defaultRole?.id || 3;
+
+    const user = await prisma.user.create({
+      data: {
+        uid: firebaseUser.uid,
+        email: data.email,
+        fullName: data.fullName,
+        roleId: roleId,
+        phone: data.phone || null,
+        isActive: true,
+      },
+    });
+
+    await createAuditLog(
+      user.id,
+      "REGISTER",
+      "User",
+      user.id,
+      { email: user.email },
+      req,
+    );
+
+    res.status(201).json({
+      message: "User registered successfully",
+      user: { id: user.id, email: user.email, fullName: user.fullName },
+    });
+  } catch (error) {
+    console.error("Registration error:", error);
+
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ errors: error.errors });
+    }
+
+    if (error.code === "auth/email-already-exists") {
+      return res.status(409).json({ error: "Email already exists" });
+    }
+
+    res.status(500).json({ error: "Failed to register user" });
+  }
+});
+
+// ============ USERS ============
+app.get(
+  "/api/users",
+  requireAuth,
+  requirePermission("user", "manage"),
+  async (req, res) => {
+    try {
+      const users = await prisma.user.findMany({
+        include: { role: true },
+        orderBy: { createdAt: "desc" },
+      });
+      res.json(users);
+    } catch (error) {
+      console.error("Get users error:", error);
+      res.status(500).json({ error: "Failed to fetch users" });
+    }
+  },
+);
+
+app.post(
+  "/api/users/create",
+  requireAuth,
+  requirePermission("user", "manage"),
+  async (req, res) => {
+    try {
+      const schema = z.object({
+        email: z.string().email(),
+        password: z.string().min(6),
+        fullName: z.string().min(2),
+        roleId: z.number().int(),
+        phone: z.string().optional(),
+      });
+
+      const data = schema.parse(req.body);
+
+      const existingUser = await prisma.user.findUnique({
+        where: { email: data.email },
+      });
+      if (existingUser) {
+        return res.status(409).json({ error: "Email already registered" });
+      }
+
+      const firebaseUser = await auth.createUser({
+        email: data.email,
+        password: data.password,
+        displayName: data.fullName,
+      });
+
+      const user = await prisma.user.create({
+        data: {
+          uid: firebaseUser.uid,
+          email: data.email,
+          fullName: data.fullName,
+          roleId: data.roleId,
+          phone: data.phone,
+          isActive: true,
+        },
+        include: { role: true },
+      });
+
+      await createAuditLog(
+        req.user.id,
+        "CREATE_USER",
+        "User",
+        user.id,
+        { email: user.email, role: user.role.name },
+        req,
+      );
+
+      res.status(201).json(user);
+    } catch (error) {
+      console.error("Create user error:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ errors: error.errors });
+      }
+      if (error.code === "auth/email-already-exists") {
+        return res.status(409).json({ error: "Email exists in Firebase" });
+      }
+      res.status(500).json({ error: "Failed to create user" });
+    }
+  },
+);
+
+// ============ USER PROFILE UPDATE ============
+app.put("/api/users/:id", requireAuth, async (req, res) => {
+  try {
+    const userId = parseInt(req.params.id);
+    const { fullName, phone } = req.body;
+
+    const isSelf = req.user.id === userId;
+    const isAdmin = req.user.permissions?.some(
+      (p) => p.resource === "user" && p.action === "manage",
+    );
+
+    if (!isSelf && !isAdmin) {
+      return res
+        .status(403)
+        .json({ error: "You can only update your own profile" });
+    }
+
+    const schema = z.object({
+      fullName: z.string().min(2).optional(),
+      phone: z.string().optional().nullable(),
+    });
+    const data = schema.parse(req.body);
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(data.fullName && { fullName: data.fullName }),
+        ...(data.phone !== undefined && { phone: data.phone }),
+      },
+      include: { role: true },
+    });
+
+    if (data.fullName) {
+      try {
+        const firebaseUser = await auth.getUser(updatedUser.uid);
+        if (firebaseUser.displayName !== data.fullName) {
+          await auth.updateUser(updatedUser.uid, {
+            displayName: data.fullName,
+          });
+        }
+      } catch (firebaseError) {
+        console.warn("Could not update Firebase displayName:", firebaseError);
+      }
+    }
+
+    await createAuditLog(
+      req.user.id,
+      "UPDATE_PROFILE",
+      "User",
+      userId,
+      { updated: Object.keys(data) },
+      req,
+    );
+
+    res.json({
+      user: {
+        id: updatedUser.id,
+        email: updatedUser.email,
+        fullName: updatedUser.fullName,
+        phone: updatedUser.phone,
+        role: updatedUser.role.name,
+      },
+    });
+  } catch (error) {
+    console.error("Update profile error:", error);
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ errors: error.errors });
+    }
+    res.status(500).json({ error: "Failed to update profile" });
+  }
+});
+
+// ============ ORDERS ============
+app.get("/api/orders", requireAuth, async (req, res) => {
+  try {
+    const user = req.user;
+    let where = {};
+
+    const canViewAll = await prisma.permission.findFirst({
+      where: {
+        roleId: user.roleId,
+        resource: "order",
+        action: "view_all",
+      },
+    });
+    if (!canViewAll) {
+      where.userId = user.id;
+    }
+
+    if (req.query.startDate) {
+      const start = new Date(req.query.startDate);
+      start.setHours(0, 0, 0, 0);
+      where.createdAt = { ...where.createdAt, gte: start };
+    }
+    if (req.query.endDate) {
+      const end = new Date(req.query.endDate);
+      end.setHours(23, 59, 59, 999);
+      where.createdAt = { ...where.createdAt, lte: end };
+    }
+    if (req.query.status) {
+      where.status = req.query.status;
+    }
+    if (req.query.type) {
+      where.type = req.query.type;
+    }
+    if (req.query.search) {
+      where.OR = [
+        { orderNumber: { contains: req.query.search } },
+        { description: { contains: req.query.search } },
+        { user: { fullName: { contains: req.query.search } } },
+      ];
+    }
+
+    const orders = await prisma.order.findMany({
+      where,
+      include: {
+        user: { select: { id: true, fullName: true, email: true } },
+        approvedBy: { select: { id: true, fullName: true } },
+        items: {
+          include: { category: true },
+        },
+        documents: true,
+        transaction: true,
+        _count: { select: { items: true, documents: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    res.json(orders);
+  } catch (error) {
+    console.error("Get orders error:", error);
+    res.status(500).json({ error: "Failed to fetch orders" });
+  }
+});
+
+app.get("/api/orders/:id", requireAuth, async (req, res) => {
+  try {
+    const orderId = parseInt(req.params.id);
+
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      include: {
+        user: { select: { id: true, fullName: true, email: true } },
+        approvedBy: { select: { id: true, fullName: true } },
+        items: {
+          include: { category: true },
+        },
+        documents: {
+          include: { uploadedBy: { select: { id: true, fullName: true } } },
+        },
+        transaction: true,
+      },
+    });
+
+    if (!order) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    const canViewAll = await prisma.permission.findFirst({
+      where: {
+        roleId: req.user.roleId,
+        resource: "order",
+        action: "view_all",
+      },
+    });
+    if (!canViewAll && order.userId !== req.user.id) {
+      return res.status(403).json({ error: "Access denied" });
+    }
+
+    res.json(order);
+  } catch (error) {
+    console.error("Get order error:", error);
+    res.status(500).json({ error: "Failed to fetch order" });
+  }
+});
+// ============ UPDATE USER ROLE ============
+app.put(
+  "/api/users/:id/role",
+  requireAuth,
+  requirePermission("user", "manage"),
+  async (req, res) => {
+    try {
+      const userId = parseInt(req.params.id);
+      const { roleId } = req.body;
+
+      // Validate roleId
+      const role = await prisma.role.findUnique({
+        where: { id: roleId },
+      });
+      if (!role) {
+        return res.status(400).json({ error: "Invalid role ID" });
+      }
+
+      // Check if user exists
+      const user = await prisma.user.findUnique({
+        where: { id: userId },
+      });
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+
+      // Prevent admin from downgrading themselves (optional safety)
+      if (user.id === req.user.id) {
+        return res.status(403).json({
+          error: "You cannot change your own role",
+        });
+      }
+
+      // Update user role
+      const updatedUser = await prisma.user.update({
+        where: { id: userId },
+        data: { roleId: roleId },
+        include: { role: true },
+      });
+
+      await createAuditLog(
+        req.user.id,
+        "UPDATE_USER_ROLE",
+        "User",
+        userId,
+        { oldRoleId: user.roleId, newRoleId: roleId },
+        req,
+      );
+
+      res.json({
+        message: "User role updated successfully",
+        user: {
+          id: updatedUser.id,
+          email: updatedUser.email,
+          fullName: updatedUser.fullName,
+          role: updatedUser.role.name,
+        },
+      });
+    } catch (error) {
+      console.error("Update user role error:", error);
+      res.status(500).json({ error: "Failed to update user role" });
+    }
+  },
+);
+// ============ UPDATE ORDER (Edit) ============
+app.put(
+  "/api/orders/:id",
+  requireAuth,
+  requirePermission("order", "create"),
+  async (req, res) => {
+    try {
+      const orderId = parseInt(req.params.id);
+      const user = req.user;
+
+      // Schema with updatedAt for version check
+      const schema = z.object({
+        type: z.enum(["income", "expense"]),
+        description: z.string().optional(),
+        items: z
+          .array(
+            z.object({
+              description: z.string().min(1, "Description is required"),
+              quantity: z
+                .number()
+                .int()
+                .positive("Quantity must be at least 1"),
+              unitPrice: z
+                .number()
+                .positive("Unit price must be greater than 0"),
+              categoryId: z.number().int().optional(),
+            }),
+          )
+          .min(1, "At least one item is required"),
+        updatedAt: z.string().datetime(), // 🛡️ Version check
+      });
+
+      const data = schema.parse(req.body);
+
+      // Fetch current order
+      const order = await prisma.order.findUnique({
+        where: { id: orderId },
+        include: { items: true },
+      });
+
+      if (!order) {
+        return res.status(404).json({ error: "Order not found" });
+      }
+
+      // ✅ Only the owner can edit
+      if (order.userId !== user.id) {
+        return res.status(403).json({
+          error: "You can only edit your own orders",
+        });
+      }
+
+      // ✅ Only pending orders can be edited
+      if (order.status !== "pending") {
+        return res.status(400).json({
+          error: "Only pending orders can be edited",
+        });
+      }
+
+      // 🔐 CONFLICT CHECK: Did someone else modify this order since the user loaded it?
+      if (order.updatedAt.toISOString() !== data.updatedAt) {
+        return res.status(409).json({
+          error:
+            "The order has been modified by another user. Please refresh and try again.",
+        });
+      }
+
+      // Calculate total amount
+      const totalAmount = data.items.reduce(
+        (sum, item) => sum + item.quantity * item.unitPrice,
+        0,
+      );
+
+      // Update order and items in a transaction
+      const updatedOrder = await prisma.$transaction(async (tx) => {
+        const updated = await tx.order.update({
+          where: { id: orderId },
+          data: {
+            type: data.type,
+            description: data.description,
+            totalAmount: totalAmount,
+          },
+        });
+
+        // Delete old items
+        await tx.orderItem.deleteMany({
+          where: { orderId: orderId },
+        });
+
+        // Create new items
+        await tx.orderItem.createMany({
+          data: data.items.map((item) => ({
+            orderId: orderId,
+            description: item.description,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            totalPrice: item.quantity * item.unitPrice,
+            categoryId: item.categoryId || null,
+          })),
+        });
+
+        return updated;
+      });
+
+      // Log audit
+      await createAuditLog(
+        user.id,
+        "UPDATE_ORDER",
+        "Order",
+        orderId,
+        { orderNumber: order.orderNumber },
+        req,
+        orderId,
+      );
+
+      res.json({
+        message: "Order updated successfully",
+        order: updatedOrder,
+      });
+    } catch (error) {
+      console.error("Update order error:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ errors: error.errors });
+      }
+      res.status(500).json({ error: "Failed to update order" });
+    }
+  },
+);
+app.post(
+  "/api/orders/create",
+  requireAuth,
+  requirePermission("order", "create"),
+  async (req, res) => {
+    try {
+      const schema = z.object({
+        type: z.enum(["income", "expense"]),
+        description: z.string().optional(),
+        items: z
+          .array(
+            z.object({
+              description: z.string().min(1),
+              quantity: z.number().int().positive(),
+              unitPrice: z.number().positive(),
+              categoryId: z.number().int().optional(),
+            }),
+          )
+          .min(1),
+      });
+
+      const data = schema.parse(req.body);
+      const totalAmount = data.items.reduce(
+        (sum, item) => sum + item.quantity * item.unitPrice,
+        0,
+      );
+
+      // Fetch require_approval setting
+      const requireApprovalSetting = await prisma.setting.findUnique({
+        where: { key: "require_approval" },
+      });
+      const requireApproval = requireApprovalSetting?.value !== "false";
+
+      const newOrder = await prisma.$transaction(async (tx) => {
+        const orderNumber = generateOrderNumber();
+
+        // Determine initial status
+        let status = requireApproval ? "pending" : "approved";
+
+        const order = await tx.order.create({
+          data: {
+            orderNumber,
+            type: data.type,
+            status: status,
+            totalAmount,
+            description: data.description,
+            userId: req.user.id,
+          },
+        });
+
+        await tx.orderItem.createMany({
+          data: data.items.map((item) => ({
+            orderId: order.id,
+            description: item.description,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            totalPrice: item.quantity * item.unitPrice,
+            categoryId: item.categoryId || null,
+          })),
+        });
+
+        // If approval is NOT required, immediately update fund
+        if (!requireApproval) {
+          const fund = await tx.fund.findUnique({ where: { id: 1 } });
+          if (!fund) throw new Error("Fund not found");
+
+          const newBalance =
+            order.type === "income"
+              ? fund.currentBalance + order.totalAmount
+              : fund.currentBalance - order.totalAmount;
+
+          await tx.fund.update({
+            where: { id: 1 },
+            data: { currentBalance: newBalance },
+          });
+
+          const signedAmount =
+            order.type === "income" ? order.totalAmount : -order.totalAmount;
+          await tx.transaction.create({
+            data: {
+              orderId: order.id,
+              fundId: fund.id,
+              amount: signedAmount,
+              balanceBefore: fund.currentBalance,
+              balanceAfter: newBalance,
+              description: order.description || order.orderNumber,
+            },
+          });
+
+          // Set approved fields (since it's automatically approved)
+          await tx.order.update({
+            where: { id: order.id },
+            data: {
+              approvedById: req.user.id,
+              approvedAt: new Date(),
+            },
+          });
+        }
+
+        return order;
+      });
+
+      await createAuditLog(
+        req.user.id,
+        "CREATE_ORDER",
+        "Order",
+        newOrder.id,
+        {
+          orderNumber: newOrder.orderNumber,
+          totalAmount,
+          status: newOrder.status,
+        },
+        req,
+        newOrder.id,
+      );
+
+      res.status(201).json(newOrder);
+    } catch (error) {
+      console.error("Create order error:", error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ errors: error.errors });
+      }
+      res.status(500).json({ error: "Failed to create order" });
+    }
+  },
+);
+// ============ APPROVE ORDER (with fund update) ============
+app.post(
+  "/api/orders/:id/approve",
+  requireAuth,
+  requirePermission("order", "approve"),
+  async (req, res) => {
+    try {
+      const orderId = parseInt(req.params.id);
+
+      const order = await prisma.order.findUnique({ where: { id: orderId } });
+      if (!order) return res.status(404).json({ error: "Order not found" });
+      if (order.status !== "pending") {
+        return res.status(400).json({ error: "Order is not pending" });
+      }
+
+      // ✅ Approve + update fund
+      const result = await prisma.$transaction(async (tx) => {
+        // 1. Update order status
+        const updatedOrder = await tx.order.update({
+          where: { id: orderId },
+          data: {
+            status: "approved",
+            approvedBy: { connect: { id: req.user.id } },
+            approvedAt: new Date(),
+          },
+        });
+
+        // 2. Get fund
+        const fund = await tx.fund.findUnique({ where: { id: 1 } });
+        if (!fund) throw new Error("Fund not found");
+
+        // 3. Calculate new balance
+        const newBalance =
+          order.type === "income"
+            ? fund.currentBalance + order.totalAmount
+            : fund.currentBalance - order.totalAmount;
+
+        // 4. Update fund
+        await tx.fund.update({
+          where: { id: 1 },
+          data: { currentBalance: newBalance },
+        });
+
+        // 5. Create transaction
+        const signedAmount =
+          order.type === "income" ? order.totalAmount : -order.totalAmount;
+        await tx.transaction.create({
+          data: {
+            orderId: order.id,
+            fundId: fund.id,
+            amount: signedAmount,
+            balanceBefore: fund.currentBalance,
+            balanceAfter: newBalance,
+            description: order.description || order.orderNumber,
+          },
+        });
+
+        return updatedOrder;
+      });
+
+      await createAuditLog(
+        req.user.id,
+        "APPROVE_ORDER",
+        "Order",
+        orderId,
+        { orderNumber: order.orderNumber },
+        req,
+        orderId,
+      );
+
+      res.json(result);
+    } catch (error) {
+      console.error("Approve order error:", error);
+      res.status(500).json({ error: "Failed to approve order" });
+    }
+  },
+); // ============ DOCUMENTS (LOCAL STORAGE) ============
+app.post(
+  "/api/documents/upload",
+  requireAuth,
+  upload.single("file"),
+  async (req, res) => {
+    try {
+      const { orderId } = req.body;
+      const file = req.file;
+
+      if (!file) return res.status(400).json({ error: "No file uploaded" });
+      if (!orderId) return res.status(400).json({ error: "Order ID required" });
+
+      const order = await prisma.order.findUnique({
+        where: { id: parseInt(orderId) },
+      });
+      if (!order) return res.status(404).json({ error: "Order not found" });
+
+      const canViewAll = await prisma.permission.findFirst({
+        where: {
+          roleId: req.user.roleId,
+          resource: "order",
+          action: "view_all",
+        },
+      });
+      if (!canViewAll && order.userId !== req.user.id) {
+        return res.status(403).json({ error: "Access denied" });
+      }
+
+      const fileUrl = `/uploads/${file.filename}`;
+
+      const document = await prisma.document.create({
+        data: {
+          orderId: parseInt(orderId),
+          fileName: file.originalname,
+          fileUrl: fileUrl,
+          fileSize: file.size,
+          mimeType: file.mimetype,
+          uploadedById: req.user.id,
+        },
+      });
+
+      await createAuditLog(
+        req.user.id,
+        "UPLOAD_DOCUMENT",
+        "Document",
+        document.id,
+        { fileName: file.originalname, orderId },
+        req,
+        parseInt(orderId),
+      );
+
+      res.status(201).json(document);
+    } catch (error) {
+      console.error("Upload error:", error);
+      res.status(500).json({ error: "Failed to upload document" });
+    }
+  },
+);
+
+// ============ FUND ============
+app.get("/api/fund", requireAuth, async (req, res) => {
+  try {
+    const fund = await prisma.fund.findUnique({
+      where: { id: 1 },
+    });
+    if (!fund) return res.status(404).json({ error: "Fund not found" });
+    res.json(fund);
+  } catch (error) {
+    console.error("Get fund error:", error);
+    res.status(500).json({ error: "Failed to fetch fund" });
+  }
+});
+
+// ============ AUDIT LOGS ============
+app.get(
+  "/api/audit-logs",
+  requireAuth,
+  requirePermission("audit", "view"),
+  async (req, res) => {
+    try {
+      const { limit = 50, offset = 0, action, userId } = req.query;
+
+      const where = {};
+      if (action) where.action = action;
+      if (userId) where.userId = parseInt(userId);
+
+      const logs = await prisma.auditLog.findMany({
+        where,
+        include: {
+          user: { select: { id: true, fullName: true, email: true } },
+        },
+        orderBy: { createdAt: "desc" },
+        take: parseInt(limit),
+        skip: parseInt(offset),
+      });
+
+      const total = await prisma.auditLog.count({ where });
+
+      res.json({
+        data: logs,
+        pagination: { total, limit: parseInt(limit), offset: parseInt(offset) },
+      });
+    } catch (error) {
+      console.error("Get audit logs error:", error);
+      res.status(500).json({ error: "Failed to fetch audit logs" });
+    }
+  },
+);
+
+// ============ SETTINGS ============
+app.get(
+  "/api/settings",
+  requireAuth,
+  requirePermission("setting", "manage"),
+  async (req, res) => {
+    try {
+      const settings = await prisma.setting.findMany({
+        orderBy: { group: "asc" },
+      });
+      res.json(settings);
+    } catch (error) {
+      console.error("Get settings error:", error);
+      res.status(500).json({ error: "Failed to fetch settings" });
+    }
+  },
+);
+
+app.put(
+  "/api/settings",
+  requireAuth,
+  requirePermission("setting", "manage"),
+  async (req, res) => {
+    try {
+      const schema = z.array(
+        z.object({
+          key: z.string(),
+          value: z.string(),
+        }),
+      );
+      const data = schema.parse(req.body);
+
+      const updates = await prisma.$transaction(
+        data.map((item) =>
+          prisma.setting.update({
+            where: { key: item.key },
+            data: { value: item.value },
+          }),
+        ),
+      );
+
+      await createAuditLog(
+        req.user.id,
+        "UPDATE_SETTINGS",
+        "Setting",
+        1,
+        { updated: data.map((d) => d.key) },
+        req,
+      );
+
+      res.json(updates);
+    } catch (error) {
+      console.error("Update settings error:", error);
+      res.status(500).json({ error: "Failed to update settings" });
+    }
+  },
+);
+// ============ ROLES ============
+app.get(
+  "/api/roles",
+  requireAuth,
+  requirePermission("user", "manage"),
+  async (req, res) => {
+    try {
+      const roles = await prisma.role.findMany({
+        select: { id: true, name: true },
+      });
+      res.json(roles);
+    } catch (error) {
+      console.error("Get roles error:", error);
+      res.status(500).json({ error: "Failed to fetch roles" });
+    }
+  },
+);
+// ============ DASHBOARD STATS ============
+app.get("/api/dashboard/stats", requireAuth, async (req, res) => {
+  console.log("📊 Dashboard stats request from user:", req.user?.id);
+
+  try {
+    const user = req.user;
+    let where = {};
+
+    // Check if user can view all orders
+    const canViewAll = await prisma.permission.findFirst({
+      where: {
+        roleId: user.roleId,
+        resource: "order",
+        action: "view_all",
+      },
+    });
+    if (!canViewAll) {
+      where.userId = user.id;
+    }
+
+    // Check if user can view fund data
+    const canViewFund = await prisma.permission.findFirst({
+      where: {
+        roleId: user.roleId,
+        resource: "fund",
+        action: "view",
+      },
+    });
+
+    // Date range for monthly totals (current month)
+    const startOfMonth = new Date(
+      new Date().getFullYear(),
+      new Date().getMonth(),
+      1,
+    );
+
+    // Fetch all stats in parallel
+    const [
+      totalOrders,
+      pendingOrders,
+      approvedOrders,
+      fund,
+      monthlyTransactions,
+      monthlyIncome,
+      monthlyExpense,
+    ] = await Promise.all([
+      prisma.order.count({ where }),
+      prisma.order.count({ where: { ...where, status: "pending" } }),
+      prisma.order.count({ where: { ...where, status: "approved" } }),
+      canViewFund
+        ? prisma.fund.findUnique({ where: { id: 1 } })
+        : Promise.resolve(null),
+      canViewFund
+        ? prisma.transaction.aggregate({
+            where: {
+              createdAt: { gte: startOfMonth },
+            },
+            _sum: { amount: true },
+          })
+        : Promise.resolve({ _sum: { amount: 0 } }),
+      canViewFund
+        ? prisma.transaction.aggregate({
+            where: {
+              createdAt: { gte: startOfMonth },
+              amount: { gt: 0 }, // Income transactions
+            },
+            _sum: { amount: true },
+          })
+        : Promise.resolve({ _sum: { amount: 0 } }),
+      canViewFund
+        ? prisma.transaction.aggregate({
+            where: {
+              createdAt: { gte: startOfMonth },
+              amount: { lt: 0 }, // Expense transactions
+            },
+            _sum: { amount: true },
+          })
+        : Promise.resolve({ _sum: { amount: 0 } }),
+    ]);
+
+    // Recent orders (latest 10)
+    const recentOrders = await prisma.order.findMany({
+      where,
+      include: {
+        user: { select: { fullName: true, email: true } },
+        items: { include: { category: true } },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 10,
+    });
+
+    // Build response
+    const stats = {
+      totalOrders,
+      pendingOrders,
+      approvedOrders, // Now this represents completed orders
+    };
+
+    // Only include fund data if user has permission
+    if (canViewFund) {
+      stats.fundBalance = fund?.currentBalance || 0;
+      stats.monthlyTotal = monthlyTransactions._sum.amount || 0; // Net monthly total (income - expense)
+      stats.monthlyIncome = monthlyIncome._sum.amount || 0;
+      stats.monthlyExpense = Math.abs(monthlyExpense._sum.amount || 0); // Positive value for display
+    }
+
+    res.json({
+      stats,
+      recentOrders,
+    });
+  } catch (error) {
+    console.error("Dashboard stats error:", error);
+    res.status(500).json({ error: "Failed to fetch dashboard stats" });
+  }
+});
+// ============ REJECT ORDER ============
+// ============ REJECT ORDER (with fund reversal) ============
+app.post(
+  "/api/orders/:id/reject",
+  requireAuth,
+  requirePermission("order", "approve"),
+  async (req, res) => {
+    try {
+      const orderId = parseInt(req.params.id);
+      const { reason } = req.body;
+
+      const order = await prisma.order.findUnique({
+        where: { id: orderId },
+        include: { transaction: true },
+      });
+
+      if (!order) {
+        return res.status(404).json({ error: "Order not found" });
+      }
+
+      // Only pending or approved orders can be rejected
+      if (order.status !== "pending" && order.status !== "approved") {
+        return res.status(400).json({
+          error: "Only pending or approved orders can be rejected",
+        });
+      }
+
+      // ✅ If the order is approved (fund was updated), reverse the transaction
+      if (order.status === "approved") {
+        const fund = await prisma.fund.findUnique({ where: { id: 1 } });
+        if (!fund) throw new Error("Fund not found");
+
+        // Calculate reversal amount (opposite of the original effect)
+        const reversalAmount =
+          order.type === "income" ? -order.totalAmount : order.totalAmount;
+
+        const newBalance = fund.currentBalance + reversalAmount;
+
+        // Update fund
+        await prisma.fund.update({
+          where: { id: 1 },
+          data: { currentBalance: newBalance },
+        });
+
+        // Create reversal transaction
+        await prisma.transaction.create({
+          data: {
+            orderId: order.id,
+            fundId: fund.id,
+            amount: reversalAmount,
+            balanceBefore: fund.currentBalance,
+            balanceAfter: newBalance,
+            description: `Reversal of rejected order ${order.orderNumber}`,
+          },
+        });
+
+        // Log the reversal
+        await createAuditLog(
+          req.user.id,
+          "REJECT_ORDER_REVERSAL",
+          "Order",
+          orderId,
+          {
+            orderNumber: order.orderNumber,
+            reason,
+            reversalAmount,
+          },
+          req,
+          orderId,
+        );
+      }
+
+      // Update order status to rejected
+      const updatedOrder = await prisma.order.update({
+        where: { id: orderId },
+        data: {
+          status: "rejected",
+          approvedById: req.user.id,
+          notes: reason || "Order rejected",
+        },
+      });
+
+      await createAuditLog(
+        req.user.id,
+        "REJECT_ORDER",
+        "Order",
+        orderId,
+        { orderNumber: order.orderNumber, reason },
+        req,
+        orderId,
+      );
+
+      res.json({
+        message:
+          "Order rejected successfully" +
+          (order.status === "approved"
+            ? " (fund balance has been reversed)"
+            : ""),
+        order: updatedOrder,
+      });
+    } catch (error) {
+      console.error("Reject order error:", error);
+      res.status(500).json({ error: "Failed to reject order" });
+    }
+  },
+);
+// ============ START SERVER ============
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => {
+  console.log(`🚀 Cash Flow API running on http://localhost:${PORT}`);
+});
+
+process.on("SIGINT", async () => {
+  await prisma.$disconnect();
+  process.exit(0);
+});
+process.on("SIGTERM", async () => {
+  await prisma.$disconnect();
+  process.exit(0);
+});

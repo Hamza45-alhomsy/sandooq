@@ -1,4 +1,4 @@
-// src/app/[locale]/orders/[id]/page.tsx
+// src/app/[locale]/transactions/[id]/page.tsx
 "use client";
 
 import { useSettings } from "@/hooks/useSettings";
@@ -23,16 +23,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { DocumentUpload } from "@/components/orders/DocumentUpload";
+import { DocumentUpload } from "@/components/transactions/DocumentUpload";
 import { Download, File, XCircle, Pencil } from "lucide-react";
 
-export default function OrderDetailPage() {
+export default function TransactionDetailPage() {
   const t = useTranslations();
   const { id } = useParams();
   const router = useRouter();
   const { token, user } = useAuth();
-  const { data: order, mutate } = useSWR(`/api/orders/${id}`, fetcher);
-  const { currency } = useSettings();
+  const { data: transaction, mutate } = useSWR(`/api/transactions/${id}`, fetcher);
+  const { currency, requireApproval } = useSettings();
 
   // Reject dialog
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
@@ -41,7 +41,7 @@ export default function OrderDetailPage() {
   const handleApprove = async (action: "approve") => {
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/orders/${id}/${action}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/transactions/${id}/${action}`,
         {
           method: "POST",
           headers: {
@@ -66,7 +66,7 @@ export default function OrderDetailPage() {
   const handleReject = async () => {
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/orders/${id}/reject`,
+        `${process.env.NEXT_PUBLIC_API_URL}/api/transactions/${id}/reject`,
         {
           method: "POST",
           headers: {
@@ -78,86 +78,90 @@ export default function OrderDetailPage() {
       );
 
       if (response.ok) {
-        toast.success("Order rejected");
+        toast.success(t("TransactionDetail.rejectSuccess"));
         mutate();
         setRejectDialogOpen(false);
         setRejectReason("");
       } else {
         const error = await response.json();
-        toast.error(error.error || "Failed to reject order");
+        toast.error(error.error || t("TransactionDetail.rejectFailed"));
       }
     } catch (error) {
       toast.error(t("Common.networkError"));
     }
   };
 
-  if (!order)
+  if (!transaction)
     return (
       <MainLayout>
         <div>{t("Common.loading")}</div>
       </MainLayout>
     );
 
-  const isOwner = order.userId === user?.id;
-  const isAdmin = user?.permissions.includes("order:approve");
-  const canApprove = isAdmin && order.status === "pending";
+  const isOwner = transaction.userId === user?.id;
+  const isAdmin = user?.permissions.includes("transaction:approve");
+  const canApprove = isAdmin && transaction.status === "pending";
   const canReject =
-    isAdmin && (order.status === "pending" || order.status === "approved");
+    isAdmin && (transaction.status === "pending" || transaction.status === "approved");
 
   const statusMap: Record<string, string> = {
     pending: t("Common.pending"),
     approved: t("Common.approved"),
     rejected: t("Common.rejected"),
   };
+  const showStatusBadge = transaction.status === "rejected" || requireApproval;
+
   return (
     <MainLayout>
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold">{t("OrderDetail.title")}</h1>
+          <h1 className="text-2xl font-bold">{t("TransactionDetail.title")}</h1>
           <Button variant="outline" onClick={() => router.back()}>
             {t("Common.back")}
           </Button>
         </div>
 
         <div className="space-y-4">
-          {/* Order Info */}
+          {/* Transaction Info */}
           <Card>
             <CardHeader>
-              <CardTitle>{order.orderNumber}</CardTitle>
+              <CardTitle>{transaction.transactionNumber}</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
               <p>
-                <strong>{t("OrderDetail.description")}:</strong>{" "}
-                {order.description || "—"}
+                <strong>{t("TransactionDetail.description")}:</strong>{" "}
+                {transaction.description || "—"}
               </p>
               <p>
-                <strong>{t("OrderDetail.type")}:</strong>{" "}
-                {order.type === "income"
+                <strong>{t("TransactionDetail.type")}:</strong>{" "}
+                {transaction.type === "income"
                   ? t("Common.income")
                   : t("Common.expense")}
               </p>
               <p>
-                <strong>{t("OrderDetail.amount")}:</strong>{" "}
-                {order.totalAmount.toLocaleString()} {currency}
+                <strong>{t("TransactionDetail.amount")}:</strong>{" "}
+                {transaction.totalAmount.toLocaleString()} {currency}
               </p>
+              {showStatusBadge && (
+                <p>
+                  <strong>{t("TransactionDetail.status")}:</strong>{" "}
+                  <Badge>{statusMap[transaction.status] || transaction.status}</Badge>
+                </p>
+              )}
               <p>
-                <strong>{t("OrderDetail.status")}:</strong>{" "}
-                <Badge>{statusMap[order.status] || order.status}</Badge>
-              </p>
-              <p>
-                <strong>{t("OrderDetail.client")}:</strong>{" "}
-                {order.user?.fullName}
+                <strong>{t("TransactionDetail.client")}:</strong>{" "}
+                {transaction.user?.fullName}
               </p>
             </CardContent>
           </Card>
 
-          {/* Order Items */}
+          {/* Transaction Items */}
           <Card>
             <CardHeader>
-              <CardTitle>{t("OrderDetail.items")}</CardTitle>
+              <CardTitle>{t("TransactionDetail.items")}</CardTitle>
             </CardHeader>
             <CardContent>
-              {order.items?.map((item: any) => (
+              {transaction.items?.map((item: any) => (
                 <div
                   key={item.id}
                   className="flex justify-between border-b py-2"
@@ -173,9 +177,9 @@ export default function OrderDetailPage() {
           </Card>
 
           {/* Rejection Reason – only if rejected */}
-          {order.status === "rejected" && order.notes && (
+          {transaction.status === "rejected" && transaction.notes && (
             <div className="rounded-md bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/20 dark:text-red-400">
-              <strong>{t("OrderDetail.rejectionReason")}:</strong> {order.notes}
+              <strong>{t("TransactionDetail.rejectionReason")}:</strong> {transaction.notes}
             </div>
           )}
 
@@ -184,13 +188,13 @@ export default function OrderDetailPage() {
             <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle>{t("Documents.title")}</CardTitle>
               {(isOwner || isAdmin) && (
-                <DocumentUpload orderId={order.id} onUploadComplete={mutate} />
+                <DocumentUpload transactionId={transaction.id} onUploadComplete={mutate} />
               )}
             </CardHeader>
             <CardContent>
-              {order.documents?.length > 0 ? (
+              {transaction.documents?.length > 0 ? (
                 <div className="space-y-2">
-                  {order.documents.map((doc: any) => (
+                  {transaction.documents.map((doc: any) => (
                     <div
                       key={doc.id}
                       className="flex items-center justify-between border-b py-2"
@@ -235,7 +239,7 @@ export default function OrderDetailPage() {
                 onClick={() => handleApprove("approve")}
                 className="flex-1"
               >
-                {t("OrderDetail.approve")}
+                {t("TransactionDetail.approve")}
               </Button>
             )}
             {canReject && (
@@ -245,17 +249,17 @@ export default function OrderDetailPage() {
                 className="flex-1"
               >
                 <XCircle className="mr-2 h-4 w-4" />
-                Reject
+                {t("TransactionDetail.reject")}
               </Button>
             )}
-            {isOwner && order.status === "pending" && (
+            {isOwner && transaction.status === "pending" && (
               <Button
                 variant="outline"
                 className="flex-1"
-                onClick={() => router.push(`/orders/${order.id}/edit`)}
+                onClick={() => router.push(`/transactions/${transaction.id}/edit`)}
               >
                 <Pencil className="mr-2 h-4 w-4" />
-                {t("OrderDetail.editOrder")}
+                {t("TransactionDetail.editTransaction")}
               </Button>
             )}
           </div>
@@ -266,18 +270,18 @@ export default function OrderDetailPage() {
       <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
         <DialogContent showCloseButton={false}>
           <DialogHeader>
-            <DialogTitle>{t("OrderDetail.rejectDialog.title")}</DialogTitle>
+            <DialogTitle>{t("TransactionDetail.rejectDialog.title")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div>
               <Label htmlFor="reason">
-                {t("OrderDetail.rejectDialog.reason")}
+                {t("TransactionDetail.rejectDialog.reason")}
               </Label>
               <Input
                 id="reason"
                 value={rejectReason}
                 onChange={(e) => setRejectReason(e.target.value)}
-                placeholder={t("OrderDetail.rejectDialog.reasonPlaceholder")}
+                placeholder={t("TransactionDetail.rejectDialog.reasonPlaceholder")}
               />
             </div>
           </div>
@@ -286,10 +290,10 @@ export default function OrderDetailPage() {
               variant="outline"
               onClick={() => setRejectDialogOpen(false)}
             >
-              {t("OrderDetail.rejectDialog.cancel")}
+              {t("TransactionDetail.rejectDialog.cancel")}
             </Button>
             <Button variant="destructive" onClick={handleReject}>
-              {t("OrderDetail.rejectDialog.confirm")}
+              {t("TransactionDetail.rejectDialog.confirm")}
             </Button>
           </DialogFooter>
         </DialogContent>

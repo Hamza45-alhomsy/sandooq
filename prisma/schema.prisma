@@ -19,9 +19,12 @@ model User {
   updatedAt         DateTime   @updatedAt
   auditLogs         AuditLog[]
   uploadedDocuments Document[]
-  approvedOrders    Order[]    @relation("ApprovedOrders")
-  orders            Order[]
+  approvedTransactions    Transaction[]    @relation("ApprovedTransactions")
+  transactions            Transaction[]
   role              Role       @relation(fields: [roleId], references: [id], onDelete: NoAction)
+  ownedWorkspaces   Workspace[] @relation("WorkspaceOwner")
+  workspaceMemberships WorkspaceMember[]
+  sentInvitations   WorkspaceInvitation[] @relation("InvitationSender")
 
   @@index([roleId], map: "users_roleId_fkey")
   @@map("users")
@@ -35,6 +38,7 @@ model Role {
   updatedAt   DateTime     @updatedAt
   permissions Permission[]
   users       User[]
+  workspaceMembers WorkspaceMember[]
 
   @@map("roles")
 }
@@ -59,14 +63,16 @@ model Fund {
   description    String?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
-  transactions   Transaction[]
+  fundTransactions   FundTransaction[]
+  workspaceId     Int?
+  workspace       Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@map("funds")
 }
 
-model Order {
+model Transaction {
   id           Int          @id @default(autoincrement())
-  orderNumber  String       @unique
+  transactionNumber  String       @unique
   type         String
   status       String       @default("pending")
   totalAmount  Float
@@ -78,50 +84,56 @@ model Order {
   updatedAt    DateTime     @updatedAt
   documents    Document[]
   notes        String?   @db.Text
-  items        OrderItem[]
-  approvedBy   User?        @relation("ApprovedOrders", fields: [approvedById], references: [id])
+  items        TransactionItem[]
+  approvedBy   User?        @relation("ApprovedTransactions", fields: [approvedById], references: [id])
   user         User         @relation(fields: [userId], references: [id], onDelete: NoAction)
-  transaction  Transaction[]
+  fundTransactions  FundTransaction[]
+  workspaceId    Int?
+  workspace      Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([status, createdAt])
   @@index([userId, createdAt])
-  @@index([orderNumber])
-  @@index([approvedById], map: "orders_approvedById_fkey")
-  @@map("orders")
+  @@index([transactionNumber])
+  @@index([approvedById], map: "transactions_approvedById_fkey")
+  @@map("transactions")
 }
 
-model OrderItem {
+model TransactionItem {
   id          Int       @id @default(autoincrement())
-  orderId     Int
+  transactionId     Int
   description String
-  quantity    Int       @default(1)
+  quantity    Float     @default(1)
   unitPrice   Float
   totalPrice  Float
   categoryId  Int?
   createdAt   DateTime  @default(now())
   category    Category? @relation(fields: [categoryId], references: [id])
-  order       Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  transaction       Transaction     @relation(fields: [transactionId], references: [id], onDelete: Cascade)
 
-  @@index([categoryId], map: "order_items_categoryId_fkey")
-  @@index([orderId], map: "order_items_orderId_fkey")
-  @@map("order_items")
+  @@index([categoryId], map: "transaction_items_categoryId_fkey")
+  @@index([transactionId], map: "transaction_items_transactionId_fkey")
+  @@map("transaction_items")
 }
 
 model Category {
   id          Int         @id @default(autoincrement())
-  name        String      @unique
+  name        String
+  nameAr      String?
   type        String
   description String?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
-  items       OrderItem[]
+  items       TransactionItem[]
+  workspaceId Int?
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@map("categories")
+  @@unique([workspaceId, name])
 }
 
-model Transaction {
+model FundTransaction {
   id            Int      @id @default(autoincrement())
-  orderId       Int      
+  transactionId       Int      
   fundId        Int
   amount        Float
   balanceBefore Float
@@ -129,16 +141,18 @@ model Transaction {
   description   String?
   createdAt     DateTime @default(now())
   fund          Fund     @relation(fields: [fundId], references: [id], onDelete: NoAction)
-  order         Order    @relation(fields: [orderId], references: [id], onDelete: NoAction)
+  transaction         Transaction    @relation(fields: [transactionId], references: [id], onDelete: NoAction)
+  workspaceId    Int?
+  workspace      Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([createdAt])
   @@index([fundId, createdAt])
-  @@map("transactions")
+  @@map("fund_transactions")
 }
 
 model Document {
   id           Int      @id @default(autoincrement())
-  orderId      Int
+  transactionId      Int
   fileName     String
   fileUrl      String
   fileSize     Int?
@@ -146,10 +160,12 @@ model Document {
   uploadedById Int
   description  String?
   createdAt    DateTime @default(now())
-  order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  transaction        Transaction    @relation(fields: [transactionId], references: [id], onDelete: Cascade)
   uploadedBy   User     @relation(fields: [uploadedById], references: [id], onDelete: NoAction)
+  workspaceId      Int?
+  workspace        Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
-  @@index([orderId, createdAt])
+  @@index([transactionId, createdAt])
   @@index([uploadedById], map: "documents_uploadedById_fkey")
   @@map("documents")
 }
@@ -165,6 +181,8 @@ model AuditLog {
   userAgent  String?
   createdAt  DateTime @default(now())
   user       User     @relation(fields: [userId], references: [id], onDelete: NoAction)
+  workspaceId Int?
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
   @@index([entityType, entityId])
@@ -173,13 +191,69 @@ model AuditLog {
 
 model Setting {
   id          Int      @id @default(autoincrement())
-  key         String   @unique
+  key         String
   value       String
   description String?
   group       String
   isPublic    Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  workspaceId Int?
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@map("settings")
+  @@unique([workspaceId, key])
+}
+
+model Workspace {
+  id          Int      @id @default(autoincrement())
+  name        String
+  ownerId     Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  owner       User     @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: NoAction)
+  members     WorkspaceMember[]
+  invitations WorkspaceInvitation[]
+  funds       Fund[]
+  transactions Transaction[]
+  categories  Category[]
+  fundTransactions FundTransaction[]
+  documents   Document[]
+  auditLogs   AuditLog[]
+  settings    Setting[]
+
+  @@index([ownerId])
+  @@map("workspaces")
+}
+
+model WorkspaceMember {
+  id          Int      @id @default(autoincrement())
+  workspaceId Int
+  userId      Int
+  roleId      Int
+  createdAt   DateTime @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        Role      @relation(fields: [roleId], references: [id], onDelete: NoAction)
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
+  @@map("workspace_members")
+}
+
+model WorkspaceInvitation {
+  id          Int      @id @default(autoincrement())
+  workspaceId Int
+  email       String
+  roleId      Int
+  token       String   @unique
+  invitedById Int
+  expiresAt   DateTime
+  acceptedAt  DateTime?
+  createdAt   DateTime @default(now())
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  invitedBy   User      @relation("InvitationSender", fields: [invitedById], references: [id], onDelete: NoAction)
+
+  @@index([workspaceId, email])
+  @@map("workspace_invitations")
 }

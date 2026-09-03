@@ -31,6 +31,7 @@ import {
   Sun,
   User,
   ChevronDown,
+  Plus,
 } from "lucide-react";
 import { useTheme } from "@teispace/next-themes";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -48,7 +49,7 @@ export function AppSidebar() {
   const router = useRouter();
   const { companyName } = useSettings();
 
-  const { user, logout } = useAuth();
+  const { user, logout, switchWorkspace } = useAuth();
   const pathname = usePathname();
   const t = useTranslations("Sidebar");
   const locale = useLocale();
@@ -59,7 +60,7 @@ export function AppSidebar() {
 
   const navItems = [
     { href: "/dashboard", label: t("dashboard"), icon: LayoutDashboard },
-    { href: "/orders", label: t("orders"), icon: Package },
+    { href: "/transactions", label: t("transactions"), icon: Package },
   ];
 
   if (user?.permissions.includes("fund:view")) {
@@ -68,7 +69,7 @@ export function AppSidebar() {
 
   if (
     user?.role === "investor" ||
-    user?.permissions.includes("order:view_all")
+    user?.permissions.includes("transaction:view_all")
   ) {
     navItems.push({
       href: "/investor",
@@ -107,9 +108,35 @@ export function AppSidebar() {
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-xl font-bold truncate"> {companyName}</span>
         </div>
+        {user && user.workspaces?.length > 1 && (
+          <select
+            aria-label={t("workspace")}
+            value={user.workspace.id}
+            onChange={(event) => switchWorkspace(Number(event.target.value))}
+            className="mt-3 h-9 w-full min-w-0 rounded-md border border-input bg-background px-2 text-sm"
+          >
+            {user.workspaces.map((workspace) => (
+              <option key={workspace.id} value={workspace.id}>
+                {workspace.name}
+              </option>
+            ))}
+          </select>
+        )}
       </SidebarHeader>
 
       <SidebarContent>
+        {user?.permissions.includes("transaction:create") && (
+          <div className="px-2 pt-2">
+            <SidebarMenuButton
+              render={<Link href="/transactions/create" />}
+              tooltip={t("newTransaction")}
+              className="bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+            >
+              <Plus className="h-4 w-4 shrink-0" />
+              <span className="truncate">{t("newTransaction")}</span>
+            </SidebarMenuButton>
+          </div>
+        )}
         <SidebarGroup>
           <SidebarGroupLabel className="truncate">
             {t("mainMenu")}
