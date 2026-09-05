@@ -7,7 +7,7 @@ export const listWorkspaces = async (req, res) => {
     (req.user.memberships || []).map((membership) => ({
       id: membership.workspace.id,
       name: membership.workspace.name,
-      role: membership.role.name,
+      role: "member",
     })),
   );
 };
@@ -15,35 +15,30 @@ export const listWorkspaces = async (req, res) => {
 export const createWorkspace = async (req, res) => {
   const schema = z.object({ name: z.string().trim().min(1) });
   const { name } = schema.parse(req.body);
-  const adminRole = await prisma.role.findUnique({ where: { name: "admin" } });
   const workspace = await prisma.workspace.create({
     data: {
       name,
       ownerId: req.user.id,
-      members: { create: { userId: req.user.id, roleId: adminRole.id } },
+      members: { create: { userId: req.user.id } },
+      funds: {
+        create: {
+          name: "My Fund",
+          currency: "SYP",
+          userId: req.user.id,
+        },
+      },
     },
-    include: { members: { include: { role: true } } },
+    include: { members: true },
   });
-  res
-    .status(201)
-    .json({ id: workspace.id, name: workspace.name, role: "admin" });
+  res.status(201).json({ id: workspace.id, name: workspace.name });
 };
 
 export const inviteToWorkspace = async (req, res) => {
-  if (req.user.role !== "admin") {
-    return res
-      .status(403)
-      .json({ error: "Only workspace admins can invite users" });
-  }
-  const schema = z.object({
-    email: z.string().email(),
-    roleId: z.number().int(),
-  });
-  const { email, roleId } = schema.parse(req.body);
+  const schema = z.object({ email: z.string().email() });
+  const { email } = schema.parse(req.body);
   const invitation = await prisma.workspaceInvitation.create({
     data: {
       email: email.toLowerCase(),
-      roleId,
       workspaceId: req.user.workspaceId,
       invitedById: req.user.id,
       token: createInvitationToken(),
@@ -78,11 +73,10 @@ export const acceptInvitation = async (req, res) => {
         userId: req.user.id,
       },
     },
-    update: { roleId: invitation.roleId },
+    update: {},
     create: {
       workspaceId: invitation.workspaceId,
       userId: req.user.id,
-      roleId: invitation.roleId,
     },
   });
   await prisma.workspaceInvitation.update({

@@ -1,4 +1,3 @@
-export type TransactionStatus = "pending" | "approved" | "rejected";
 export type TransactionType = "income" | "expense";
 
 export interface TransactionItem {
@@ -18,7 +17,6 @@ export interface Transaction {
   id: number;
   transactionNumber: string;
   type: TransactionType;
-  status: TransactionStatus;
   totalAmount: number;
   description?: string | null;
   createdAt: string;

@@ -95,12 +95,14 @@ type CategoryPieChartProps = {
   data: Array<{ name: string; value: number }>;
   emptyMessage: string;
   palette?: "green" | "red";
+  compact?: boolean;
 };
 
 export default function CategoryPieChart({
   data,
   emptyMessage,
   palette = "green",
+  compact = false,
 }: CategoryPieChartProps) {
   const { currency } = useSettings();
   const colors = getDynamicColors(data.length, palette);
@@ -116,7 +118,7 @@ export default function CategoryPieChart({
 
   return (
     <div className="space-y-4">
-      <div className="h-[22rem]">
+      <div className={compact ? "h-64" : "h-[22rem]"}>
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
@@ -124,7 +126,7 @@ export default function CategoryPieChart({
               dataKey="value"
               nameKey="name"
               innerRadius={0}
-              outerRadius={120}
+              outerRadius={compact ? 88 : 120}
               paddingAngle={0}
               label={renderCustomizedLabel}
               labelLine={false}
@@ -156,7 +158,7 @@ export default function CategoryPieChart({
           return (
             <div
               key={`${item.name}-${index}`}
-              className="flex items-center justify-between rounded-md border p-2"
+              className={`flex items-center justify-between rounded-md border ${compact ? "p-1.5" : "p-2"}`}
             >
               <div className="flex items-center gap-2">
                 <span

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useSettings } from "@/hooks/useSettings";
 
 import { useTranslations } from "next-intl";
+import { useLocale } from "next-intl";
 import useSWR from "swr";
 import { fetcher } from "@/lib/api/fetcher";
 import { MainLayout } from "@/components/layout/MainLayout";
@@ -19,6 +20,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Link } from "@/i18n/routing";
 import { Button } from "@/components/ui/button";
+import { SearchInput } from "@/components/SearchInput";
 import { useAuth } from "@/contexts/AuthContext";
 import {
   BarChart,
@@ -57,31 +59,23 @@ const InvestorTooltip = ({
 };
 
 export default function DashboardPage() {
-  const { currency, requireApproval } = useSettings();
+  const { currency } = useSettings();
 
   const t = useTranslations();
+  const locale = useLocale();
   const { user } = useAuth();
   const { data, error, isLoading } = useSWR("/api/dashboard/stats", fetcher);
   const { data: transactions, isLoading: transactionsLoading } = useSWR(
-    user?.role === "investor" || user?.permissions.includes("transaction:view_all")
-      ? "/api/transactions"
-      : null,
+    "/api/transactions",
     fetcher,
   );
-  const { data: fund, isLoading: fundLoading } = useSWR(
-    user?.role === "investor" || user?.permissions.includes("transaction:view_all")
-      ? "/api/fund"
-      : null,
-    fetcher,
-  );
-
-  const isInvestor =
-    user?.role === "investor" || user?.permissions.includes("transaction:view_all");
+  const { data: fund, isLoading: fundLoading } = useSWR("/api/fund", fetcher);
   const [selectedRange, setSelectedRange] = useState<
     "day" | "week" | "month" | "year"
   >("month");
+  const [searchQuery, setSearchQuery] = useState("");
 
-  if (isLoading) {
+  if (isLoading || transactionsLoading || fundLoading) {
     return (
       <MainLayout>
         <div className="flex h-64 items-center justify-center">
@@ -101,13 +95,45 @@ export default function DashboardPage() {
     );
   }
 
-  const stats = data?.stats || {};
-  const recentTransactions = data?.recentTransactions || [];
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+  const searchableTransactions = (transactions || []).filter(
+    (transaction: any) => {
+      if (!normalizedSearch) return true;
 
-  const executedTransactions =
-    isInvestor && transactions
-      ? transactions.filter((o: any) => o.status === "approved")
-      : [];
+      const itemText = (transaction.items || [])
+        .flatMap((item: any) => [
+          item.description,
+          item.category?.name,
+          item.category?.nameAr,
+        ])
+        .filter(Boolean)
+        .join(" ");
+      const searchableText = [
+        transaction.transactionNumber,
+        transaction.description,
+        transaction.type,
+        transaction.totalAmount,
+        transaction.user?.fullName,
+        transaction.user?.email,
+        itemText,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return searchableText.includes(normalizedSearch);
+    },
+  );
+
+  const recentTransactions = searchableTransactions
+    .slice()
+    .sort(
+      (a: any, b: any) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    )
+    .slice(0, 10);
+
+  const executedTransactions = searchableTransactions || [];
 
   const totalIncome =
     executedTransactions
@@ -121,12 +147,16 @@ export default function DashboardPage() {
 
   const monthlyData =
     executedTransactions.reduce((acc: any[], transaction: any) => {
-      const month = new Date(transaction.createdAt).toLocaleDateString("en-US", {
-        month: "short",
-      });
+      const month = new Date(transaction.createdAt).toLocaleDateString(
+        "en-US",
+        {
+          month: "short",
+        },
+      );
       const existing = acc.find((item) => item.month === month);
       if (existing) {
-        if (transaction.type === "income") existing.income += transaction.totalAmount;
+        if (transaction.type === "income")
+          existing.income += transaction.totalAmount;
         else existing.expense += transaction.totalAmount;
       } else {
         acc.push({
@@ -148,7 +178,9 @@ export default function DashboardPage() {
         const prevNet = acc.length > 0 ? acc[acc.length - 1].net : 0;
         const net =
           prevNet +
-          (transaction.type === "income" ? transaction.totalAmount : -transaction.totalAmount);
+          (transaction.type === "income"
+            ? transaction.totalAmount
+            : -transaction.totalAmount);
         acc.push({
           date: new Date(transaction.createdAt).toLocaleDateString("en-US", {
             month: "short",
@@ -162,20 +194,6 @@ export default function DashboardPage() {
   if (balanceTrend.length === 0) {
     balanceTrend.push({ date: t("Investor.today"), net: 0 });
   }
-
-  const statusColors: Record<string, string> = {
-    pending: "bg-yellow-500",
-    approved: "bg-green-500",
-    rejected: "bg-red-500",
-  };
-
-  const statusLabels: Record<string, string> = {
-    pending: t("Common.pending"),
-    approved: t("Common.approved"),
-    rejected: t("Common.rejected"),
-  };
-  const canViewFund = stats.fundBalance !== undefined;
-  const showApprovalStatus = requireApproval;
 
   const getRangeStart = (range: typeof selectedRange) => {
     const today = new Date();
@@ -205,44 +223,47 @@ export default function DashboardPage() {
     }
   };
 
-  const filteredTransactions = transactions
-    ? transactions.filter((transaction: any) => {
+  const filteredTransactions = searchableTransactions
+    ? searchableTransactions.filter((transaction: any) => {
         const transactionDate = new Date(transaction.createdAt);
         const rangeStart = getRangeStart(selectedRange);
         return transactionDate >= rangeStart;
       })
     : [];
 
-  const filteredApprovedTransactions = filteredTransactions.filter(
-    (transaction: any) => transaction.status === "approved",
-  );
+  const filteredTransactionsInRange = filteredTransactions;
 
-  const filteredIncome = filteredApprovedTransactions
+  const filteredIncome = filteredTransactionsInRange
     .filter((o: any) => o.type === "income")
     .reduce((sum: number, o: any) => sum + o.totalAmount, 0);
 
-  const filteredExpense = filteredApprovedTransactions
+  const filteredExpense = filteredTransactionsInRange
     .filter((o: any) => o.type === "expense")
     .reduce((sum: number, o: any) => sum + o.totalAmount, 0);
 
-  const filteredTransactionCount = filteredTransactions.length;
+  const filteredTransactionCount = filteredTransactionsInRange.length;
 
   const averageTransactionAmount =
-    filteredApprovedTransactions.length > 0
-      ? filteredApprovedTransactions.reduce(
-          (sum: number, transaction: any) => sum + Number(transaction.totalAmount || 0),
+    filteredTransactionsInRange.length > 0
+      ? filteredTransactionsInRange.reduce(
+          (sum: number, transaction: any) =>
+            sum + Number(transaction.totalAmount || 0),
           0,
-        ) / filteredApprovedTransactions.length
+        ) / filteredTransactionsInRange.length
       : 0;
 
-  const filteredMonthlyData = filteredApprovedTransactions.reduce(
+  const filteredMonthlyData = filteredTransactionsInRange.reduce(
     (acc: any[], transaction: any) => {
-      const month = new Date(transaction.createdAt).toLocaleDateString("en-US", {
-        month: "short",
-      });
+      const month = new Date(transaction.createdAt).toLocaleDateString(
+        "en-US",
+        {
+          month: "short",
+        },
+      );
       const existing = acc.find((item) => item.month === month);
       if (existing) {
-        if (transaction.type === "income") existing.income += transaction.totalAmount;
+        if (transaction.type === "income")
+          existing.income += transaction.totalAmount;
         else existing.expense += transaction.totalAmount;
       } else {
         acc.push({
@@ -256,7 +277,7 @@ export default function DashboardPage() {
     [],
   );
 
-  const categoryBreakdown = filteredApprovedTransactions.reduce(
+  const categoryBreakdown = filteredTransactionsInRange.reduce(
     (
       acc: Record<string, { name: string; total: number; type: string }>,
       transaction: any,
@@ -266,7 +287,8 @@ export default function DashboardPage() {
         if (!category) return;
         const key = `${category.type}:${category.id}`;
         acc[key] = acc[key] || {
-          name: category.name,
+          name:
+            locale === "ar" ? category.nameAr || category.name : category.name,
           total: 0,
           type: category.type,
         };
@@ -283,7 +305,7 @@ export default function DashboardPage() {
     .sort((a: any, b: any) => b.total - a.total)
     .map((item: any) => ({ ...item, total: Number(item.total || 0) }));
 
-  const filteredBalanceTrend = filteredApprovedTransactions
+  const filteredBalanceTrend = filteredTransactionsInRange
     .sort(
       (a: any, b: any) =>
         new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
@@ -292,7 +314,9 @@ export default function DashboardPage() {
       const prevNet = acc.length > 0 ? acc[acc.length - 1].net : 0;
       const net =
         prevNet +
-        (transaction.type === "income" ? transaction.totalAmount : -transaction.totalAmount);
+        (transaction.type === "income"
+          ? transaction.totalAmount
+          : -transaction.totalAmount);
       acc.push({
         date: new Date(transaction.createdAt).toLocaleDateString("en-US", {
           month: "short",
@@ -314,87 +338,103 @@ export default function DashboardPage() {
 
   return (
     <MainLayout>
-      <h1 className="mb-6 text-2xl font-bold">{t("Dashboard.title")}</h1>
+      <div className="mb-6">
+        <div className="mt-3 max-w-xl">
+          <SearchInput
+            value={searchQuery}
+            onChange={setSearchQuery}
+            placeholder={t("Dashboard.searchPlaceholder")}
+          />
+        </div>
+      </div>
 
-      {/* Stats Grid */}
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">
-              {t("Dashboard.totalTransactions")}
+            <CardTitle className="text-sm font-medium text-primary">
+              {t("Investor.fundBalanceTrend")}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{stats.totalTransactions || 0}</p>
+            <p className="text-2xl font-bold text-primary">
+              {(fund?.currentBalance || 0).toLocaleString()} {currency}
+            </p>
+            <p className="text-xs text-muted-foreground">
+              {t("Investor.fundBalanceNote")}
+            </p>
           </CardContent>
         </Card>
-
-        {showApprovalStatus && (
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-yellow-600">
-                {t("Dashboard.pending")}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold text-yellow-600">
-                {stats.pendingTransactions || 0}
-              </p>
-            </CardContent>
-          </Card>
-        )}
-
-        {showApprovalStatus && (
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-blue-600">
-                {t("Dashboard.approved")}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold text-blue-600">
-                {stats.approvedTransactions || 0}
-              </p>
-            </CardContent>
-          </Card>
-        )}
-
-        {showApprovalStatus && (
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-red-600">
-                {t("Dashboard.rejected")}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold text-red-600">
-                {stats.rejectedTransactions || 0}
-              </p>
-            </CardContent>
-          </Card>
-        )}
-
-        {canViewFund && (
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">
-                {t("Dashboard.fundBalance")}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold text-primary">
-                {stats.fundBalance?.toLocaleString() || 0}{" "}
-                <span className="text-sm font-normal text-muted-foreground">
-                  {currency}
-                </span>
-              </p>
-            </CardContent>
-          </Card>
-        )}
-
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium">
+            <CardTitle className="text-sm font-medium text-blue-600">
+              {t("Investor.totalTransactions")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-blue-600">
+              {data?.stats?.totalTransactions ?? 0}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="mb-6 flex flex-wrap gap-2">
+        {rangeOptions.map((option) => (
+          <button
+            key={option.key}
+            type="button"
+            onClick={() => setSelectedRange(option.key)}
+            className={`rounded-md border px-3 py-2 text-sm transition-colors ${
+              selectedRange === option.key
+                ? "border-primary bg-primary text-primary-foreground"
+                : "bg-background text-foreground hover:bg-muted"
+            }`}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-green-600">
+              {t("Investor.totalIncome")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-green-600">
+              {filteredIncome.toLocaleString()} {currency}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-red-600">
+              {t("Investor.totalExpense")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-red-600">
+              {filteredExpense.toLocaleString()} {currency}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-blue-600">
+              {t("Investor.totalTransactions")}
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-blue-600">
+              {filteredTransactionCount}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-primary">
               {t("Dashboard.averageTransactionAmount")}
             </CardTitle>
           </CardHeader>
@@ -406,7 +446,7 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      {isInvestor && !transactionsLoading && !fundLoading && (
+      {!transactionsLoading && !fundLoading && (
         <div className="mt-8">
           <h2 className="mb-4 text-xl font-semibold">{t("Investor.title")}</h2>
 
@@ -473,69 +513,11 @@ export default function DashboardPage() {
           </div>
 
           <div className="mt-6">
-            <div className="mb-4 flex flex-wrap gap-2">
-              {rangeOptions.map((option) => (
-                <button
-                  key={option.key}
-                  type="button"
-                  onClick={() => setSelectedRange(option.key)}
-                  className={`rounded-md border px-3 py-2 text-sm transition-colors ${
-                    selectedRange === option.key
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-background text-foreground hover:bg-muted"
-                  }`}
-                >
-                  {option.label}
-                </button>
-              ))}
-            </div>
-
             {!hasFilteredData && (
               <div className="mb-4 rounded-md border border-dashed p-4 text-center text-sm text-muted-foreground">
                 {t("Investor.noTransactionsInPeriod")}
               </div>
             )}
-
-            <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-green-600">
-                    {t("Investor.totalIncome")}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold text-green-600">
-                    {filteredIncome.toLocaleString()} {currency}
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-red-600">
-                    {t("Investor.totalExpense")}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold text-red-600">
-                    {filteredExpense.toLocaleString()} {currency}
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-medium text-blue-600">
-                    {t("Investor.totalTransactions")}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-2xl font-bold text-blue-600">
-                    {filteredTransactionCount}
-                  </p>
-                </CardContent>
-              </Card>
-            </div>
           </div>
         </div>
       )}
@@ -559,11 +541,8 @@ export default function DashboardPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>{t("Transactions.transactionNumber")}</TableHead>
-                  <TableHead>{t("Transactions.client")}</TableHead>
+                  <TableHead>{t("Transactions.transactionTitle")}</TableHead>
                   <TableHead>{t("Transactions.amount")}</TableHead>
-                  {showApprovalStatus && (
-                    <TableHead>{t("Transactions.status")}</TableHead>
-                  )}
                   <TableHead>{t("Transactions.date")}</TableHead>
                 </TableRow>
               </TableHeader>
@@ -579,25 +558,10 @@ export default function DashboardPage() {
                     <TableCell className="font-medium">
                       {transaction.transactionNumber}
                     </TableCell>
-                    <TableCell>{transaction.user?.fullName || "—"}</TableCell>
+                    <TableCell>{transaction.description || "—"}</TableCell>
                     <TableCell>
                       {transaction.totalAmount?.toLocaleString()} {currency}
                     </TableCell>
-                    {showApprovalStatus && (
-                      <TableCell>
-                        {transaction.status === "rejected" || showApprovalStatus ? (
-                          <Badge
-                            className={
-                              statusColors[transaction.status] || "bg-gray-500"
-                            }
-                          >
-                            {statusLabels[transaction.status] || transaction.status}
-                          </Badge>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-                    )}
                     <TableCell>
                       {new Date(transaction.createdAt).toLocaleDateString()}
                     </TableCell>

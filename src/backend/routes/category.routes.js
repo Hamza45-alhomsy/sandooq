@@ -5,28 +5,13 @@ import {
   updateCategory,
   deleteCategory,
 } from "../controllers/category.controller.js";
-import { requireAuth, requirePermission } from "../middlewares/index.js";
+import { requireAuth } from "../middlewares/index.js";
 
 const router = express.Router();
 
 router.get("/", requireAuth, getCategories);
-router.post(
-  "/",
-  requireAuth,
-  requirePermission("category", "manage"),
-  createCategory,
-);
-router.put(
-  "/:id",
-  requireAuth,
-  requirePermission("category", "manage"),
-  updateCategory,
-);
-router.delete(
-  "/:id",
-  requireAuth,
-  requirePermission("category", "manage"),
-  deleteCategory,
-);
+router.post("/", requireAuth, createCategory);
+router.put("/:id", requireAuth, updateCategory);
+router.delete("/:id", requireAuth, deleteCategory);
 
 export default router;

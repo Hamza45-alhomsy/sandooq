@@ -8,4 +8,3 @@ export * from "./settings.controller.js";
 export * from "./dashboard.controller.js";
 export * from "./fund.controller.js";
 export * from "./test.controller.js";
-export * from "./roles.controller.js";

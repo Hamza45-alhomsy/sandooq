@@ -15,6 +15,8 @@ const settingsFetcher = async (url: string) => {
     const token = await firebaseUser.getIdToken(true);
     headers.Authorization = `Bearer ${token}`;
   }
+  const workspaceId = localStorage.getItem("activeWorkspaceId");
+  if (workspaceId) headers["x-workspace-id"] = workspaceId;
 
   const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${url}`, {
     headers,
@@ -45,16 +47,12 @@ export function useSettings() {
 
   const currency =
     settings.find((s: any) => s.key === "currency")?.value || "SYP";
-  const requireApproval =
-    settings.find((s: any) => s.key === "require_approval")?.value !== "false";
-
   return {
     settings,
     companyName,
     companyNameEn,
     companyNameAr,
     currency,
-    requireApproval,
     isLoading,
     error,
   };

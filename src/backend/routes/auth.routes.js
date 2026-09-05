@@ -1,15 +1,11 @@
-// routes/auth.routes.js — Authentication routes
+// src/backend/routes/auth.routes.js
 import express from "express";
-import {
-  debugVerify,
-  verifyToken,
-  registerUser,
-} from "../controllers/auth.controller.js";
+import { requireAuth } from "../middlewares/auth.js";
+import { verifyToken, registerUser } from "../controllers/auth.controller.js";
 
 const router = express.Router();
 
-router.post("/debug-verify", debugVerify);
-router.post("/verify", verifyToken);
+router.post("/verify", requireAuth, verifyToken);
 router.post("/register", registerUser);
 
 export default router;

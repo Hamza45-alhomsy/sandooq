@@ -1,16 +1,27 @@
-// src/app/[locale]/investor/page.tsx
+// src/app/[locale]/analyzing/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import useSWR from "swr";
 import { fetcher } from "@/lib/api/fetcher";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import CategoryPieChart from "@/components/charts/CategoryPieChart";
-import { useAuth } from "@/contexts/AuthContext";
 import { Badge } from "@/components/ui/badge";
 import { useSettings } from "@/hooks/useSettings";
+import { SearchInput } from "@/components/SearchInput";
+import { Button, buttonVariants } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { CalendarIcon, X } from "lucide-react";
+import { format } from "date-fns";
+import { ar } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 
 const getRangeStart = (range: "day" | "week" | "month" | "year") => {
   const today = new Date();
@@ -40,71 +51,118 @@ const getRangeStart = (range: "day" | "week" | "month" | "year") => {
   }
 };
 
-export default function InvestorPage() {
+export default function AnalyzingPage() {
   const t = useTranslations("Investor");
   const tCommon = useTranslations("Common");
+  const locale = useLocale();
   const { currency } = useSettings();
   const [selectedRange, setSelectedRange] = useState<
     "day" | "week" | "month" | "year"
   >("month");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [fromDate, setFromDate] = useState<Date | undefined>();
+  const [toDate, setToDate] = useState<Date | undefined>();
   const [selectedIncomeCategoryIds, setSelectedIncomeCategoryIds] = useState<
     number[]
   >([]);
   const [selectedExpenseCategoryIds, setSelectedExpenseCategoryIds] = useState<
     number[]
   >([]);
-  const [incomeCategoriesInitialized, setIncomeCategoriesInitialized] =
-    useState(false);
-  const [expenseCategoriesInitialized, setExpenseCategoriesInitialized] =
-    useState(false);
-
-  const { user } = useAuth();
   const { data: transactions, isLoading: transactionsLoading } = useSWR(
-    user?.role === "investor" ||
-      user?.permissions.includes("transaction:view_all")
-      ? "/api/transactions"
-      : null,
+    "/api/transactions",
     fetcher,
+    {
+      revalidateOnMount: true,
+      revalidateIfStale: true,
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
+    },
   );
-  const { data: categories = [] } = useSWR("/api/categories", fetcher);
-  const { data: fund, isLoading: fundLoading } = useSWR("/api/fund", fetcher);
+  const { data: categories = [] } = useSWR("/api/categories", fetcher, {
+    revalidateOnMount: true,
+    revalidateIfStale: true,
+    revalidateOnFocus: true,
+    revalidateOnReconnect: true,
+  });
+  const { data: fund, isLoading: fundLoading } = useSWR("/api/fund", fetcher, {
+    revalidateOnFocus: true,
+    revalidateOnReconnect: true,
+  });
 
-  const isInvestor =
-    user?.permissions.includes("transaction:view_all") ||
-    user?.role === "investor";
-  const shouldShowAccessDenied = !isInvestor;
   const shouldShowLoading = transactionsLoading || fundLoading;
 
-  const executedTransactions =
-    transactions?.filter((o: any) => o.status === "approved") || [];
+  const executedTransactions = transactions || [];
 
-  const filteredApprovedTransactions = executedTransactions.filter(
+  const normalizedSearch = searchQuery.trim().toLowerCase();
+  const rangeStart = fromDate
+    ? new Date(fromDate.getFullYear(), fromDate.getMonth(), fromDate.getDate())
+    : toDate
+      ? new Date(0)
+      : getRangeStart(selectedRange);
+  const rangeEnd = toDate
+    ? new Date(
+        toDate.getFullYear(),
+        toDate.getMonth(),
+        toDate.getDate(),
+        23,
+        59,
+        59,
+        999,
+      )
+    : null;
+
+  const filteredTransactionsInRange = executedTransactions.filter(
     (transaction: any) => {
       const transactionDate = new Date(transaction.createdAt);
-      return transactionDate >= getRangeStart(selectedRange);
+      const itemText = (transaction.items || [])
+        .flatMap((item: any) => [
+          item.description,
+          item.category?.name,
+          item.category?.nameAr,
+        ])
+        .filter(Boolean)
+        .join(" ");
+      const searchableText = [
+        transaction.transactionNumber,
+        transaction.description,
+        transaction.type,
+        transaction.totalAmount,
+        transaction.user?.fullName,
+        transaction.user?.email,
+        itemText,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return (
+        transactionDate >= rangeStart &&
+        (!rangeEnd || transactionDate <= rangeEnd) &&
+        (!normalizedSearch || searchableText.includes(normalizedSearch))
+      );
     },
   );
 
   const totalIncome =
-    filteredApprovedTransactions
+    filteredTransactionsInRange
       .filter((o: any) => o.type === "income")
       .reduce((sum: number, o: any) => sum + o.totalAmount, 0) || 0;
 
   const totalExpense =
-    filteredApprovedTransactions
+    filteredTransactionsInRange
       .filter((o: any) => o.type === "expense")
       .reduce((sum: number, o: any) => sum + o.totalAmount, 0) || 0;
 
   const averageTransactionAmount =
-    filteredApprovedTransactions.length > 0
-      ? filteredApprovedTransactions.reduce(
+    filteredTransactionsInRange.length > 0
+      ? filteredTransactionsInRange.reduce(
           (sum: number, transaction: any) =>
             sum + Number(transaction.totalAmount || 0),
           0,
-        ) / filteredApprovedTransactions.length
+        ) / filteredTransactionsInRange.length
       : 0;
 
-  const categoryTotals = filteredApprovedTransactions.reduce(
+  const categoryTotals = filteredTransactionsInRange.reduce(
     (
       acc: Record<
         string,
@@ -120,7 +178,8 @@ export default function InvestorPage() {
         const key = `${category.type}:${category.id}`;
         acc[key] = acc[key] || {
           id: category.id,
-          name: category.name,
+          name:
+            locale === "ar" ? category.nameAr || category.name : category.name,
           total: 0,
           type: category.type,
         };
@@ -147,23 +206,52 @@ export default function InvestorPage() {
     (category: any) => category.type === "expense",
   );
 
-  useEffect(() => {
-    if (incomeCategoryData.length > 0 && !incomeCategoriesInitialized) {
-      setSelectedIncomeCategoryIds(
-        incomeCategoryData.map((category: any) => category.id),
-      );
-      setIncomeCategoriesInitialized(true);
-    }
-  }, [incomeCategoryData, incomeCategoriesInitialized]);
+  const incomeCategoryIdsKey = incomeCategoryData
+    .map((category: any) => category.id)
+    .sort((first: number, second: number) => first - second)
+    .join(",");
+  const expenseCategoryIdsKey = expenseCategoryData
+    .map((category: any) => category.id)
+    .sort((first: number, second: number) => first - second)
+    .join(",");
 
   useEffect(() => {
-    if (expenseCategoryData.length > 0 && !expenseCategoriesInitialized) {
-      setSelectedExpenseCategoryIds(
-        expenseCategoryData.map((category: any) => category.id),
-      );
-      setExpenseCategoriesInitialized(true);
-    }
-  }, [expenseCategoryData, expenseCategoriesInitialized]);
+    const categoryIds = incomeCategoryIdsKey
+      ? incomeCategoryIdsKey.split(",").map(Number)
+      : [];
+    setSelectedIncomeCategoryIds((current) => {
+      const next =
+        current.length === 0
+          ? categoryIds
+          : [
+              ...current.filter((id) => categoryIds.includes(id)),
+              ...categoryIds.filter((id) => !current.includes(id)),
+            ];
+      return next.length === current.length &&
+        next.every((id, index) => id === current[index])
+        ? current
+        : next;
+    });
+  }, [incomeCategoryIdsKey]);
+
+  useEffect(() => {
+    const categoryIds = expenseCategoryIdsKey
+      ? expenseCategoryIdsKey.split(",").map(Number)
+      : [];
+    setSelectedExpenseCategoryIds((current) => {
+      const next =
+        current.length === 0
+          ? categoryIds
+          : [
+              ...current.filter((id) => categoryIds.includes(id)),
+              ...categoryIds.filter((id) => !current.includes(id)),
+            ];
+      return next.length === current.length &&
+        next.every((id, index) => id === current[index])
+        ? current
+        : next;
+    });
+  }, [expenseCategoryIdsKey]);
 
   const toggleCategorySelection = (
     type: "income" | "expense",
@@ -200,6 +288,15 @@ export default function InvestorPage() {
     { key: "month", label: t("thisMonth") },
     { key: "year", label: t("thisYear") },
   ] as const;
+
+  const clearFilters = () => {
+    setSearchQuery("");
+    setFromDate(undefined);
+    setToDate(undefined);
+    setSelectedRange("month");
+  };
+
+  const dateFormat = locale === "ar" ? "dd/MM/yyyy" : "MM/dd/yyyy";
 
   const renderCategorySelectors = (
     type: "income" | "expense",
@@ -254,6 +351,8 @@ export default function InvestorPage() {
                 key={`${type}-${category.id}`}
                 type="button"
                 onClick={() => toggleCategorySelection(type, category.id)}
+                aria-pressed={isSelected}
+                title={isSelected ? t("clearAll") : t("selectAll")}
                 className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
                   isSelected
                     ? type === "income"
@@ -262,7 +361,9 @@ export default function InvestorPage() {
                     : "border-muted bg-background text-muted-foreground hover:bg-muted"
                 }`}
               >
-                {category.name}
+                {locale === "ar"
+                  ? category.nameAr || category.name
+                  : category.name}
               </button>
             );
           })}
@@ -270,16 +371,6 @@ export default function InvestorPage() {
       </div>
     );
   };
-
-  if (shouldShowAccessDenied) {
-    return (
-      <MainLayout>
-        <div className="flex h-64 items-center justify-center text-red-500">
-          {t("accessDenied")}
-        </div>
-      </MainLayout>
-    );
-  }
 
   if (shouldShowLoading) {
     return (
@@ -293,7 +384,78 @@ export default function InvestorPage() {
 
   return (
     <MainLayout>
-      <h1 className="mb-6 text-2xl font-bold">{t("title")}</h1>
+      <div className="mb-4 rounded-md border bg-muted/20 p-4">
+        <div className="flex flex-col gap-3 md:flex-row md:items-end">
+          <div className="min-w-0 flex-1">
+            <label className="mb-1 block text-sm font-medium">
+              {tCommon("search")}
+            </label>
+            <SearchInput
+              value={searchQuery}
+              onChange={setSearchQuery}
+              placeholder={t("searchPlaceholder")}
+            />
+          </div>
+          <div className="flex flex-col gap-1 text-sm font-medium">
+            <span>{tCommon("from")}</span>
+            <Popover>
+              <PopoverTrigger
+                className={cn(
+                  buttonVariants({ variant: "outline" }),
+                  "w-[150px] justify-start text-left font-normal",
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {fromDate ? format(fromDate, dateFormat) : tCommon("from")}
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0">
+                <Calendar
+                  mode="single"
+                  selected={fromDate}
+                  onSelect={setFromDate}
+                  disabled={(date) => Boolean(toDate && date > toDate)}
+                  locale={locale === "ar" ? ar : undefined}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+          <div className="flex flex-col gap-1 text-sm font-medium">
+            <span>{tCommon("to")}</span>
+            <Popover>
+              <PopoverTrigger
+                className={cn(
+                  buttonVariants({ variant: "outline" }),
+                  "w-[150px] justify-start text-left font-normal",
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {toDate ? format(toDate, dateFormat) : tCommon("to")}
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0">
+                <Calendar
+                  mode="single"
+                  selected={toDate}
+                  onSelect={setToDate}
+                  disabled={(date) => Boolean(fromDate && date < fromDate)}
+                  locale={locale === "ar" ? ar : undefined}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+          {(searchQuery || fromDate || toDate) && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={clearFilters}
+              className="gap-1"
+            >
+              <X className="h-4 w-4" />
+              {tCommon("clear")}
+            </Button>
+          )}
+        </div>
+      </div>
 
       <div className="mb-6 flex flex-wrap gap-2">
         {rangeOptions.map((option) => (
@@ -369,7 +531,7 @@ export default function InvestorPage() {
         </Card>
       </div>
 
-      <div className="mt-6 grid gap-6 grid-cols-1 lg:grid-cols-2">
+      <div className="mx-auto mt-6 grid max-w-5xl gap-4 grid-cols-1 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>
@@ -385,6 +547,7 @@ export default function InvestorPage() {
               }))}
               emptyMessage={t("noTransactionsInPeriod")}
               palette="green"
+              compact
             />
           </CardContent>
         </Card>
@@ -404,25 +567,26 @@ export default function InvestorPage() {
               }))}
               emptyMessage={t("noTransactionsInPeriod")}
               palette="red"
+              compact
             />
           </CardContent>
         </Card>
       </div>
 
-      <div className="mt-6">
+      <div className="mx-auto mt-6 max-w-5xl">
         <Card>
           <CardHeader>
             <CardTitle>{t("recentTransactions")}</CardTitle>
           </CardHeader>
           <CardContent>
-            {filteredApprovedTransactions.length > 0 ? (
+            {filteredTransactionsInRange.length > 0 ? (
               <div className="space-y-2">
-                {filteredApprovedTransactions
+                {filteredTransactionsInRange
                   .slice(0, 10)
                   .map((transaction: any) => (
                     <div
                       key={transaction.id}
-                      className="flex items-center justify-between border-b py-2"
+                      className="flex items-center justify-between border-b py-1.5"
                     >
                       <div>
                         <p className="font-medium">

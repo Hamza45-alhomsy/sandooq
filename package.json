@@ -26,6 +26,7 @@
     "clsx": "^2.1.1",
     "cors": "^2.8.5",
     "date-fns": "^4.4.0",
+    "deepseek-browser-agent": "^1.0.1",
     "dotenv": "^16.0.3",
     "express": "^4.18.2",
     "firebase": "^12.16.0",

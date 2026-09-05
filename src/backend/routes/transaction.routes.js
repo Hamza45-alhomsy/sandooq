@@ -5,33 +5,16 @@ import {
   getTransactionById,
   createTransaction,
   updateTransaction,
-  approveTransaction,
-  rejectTransaction,
+  deleteTransaction,
 } from "../controllers/transaction.controller.js";
-import { requireAuth, requirePermission } from "../middlewares/index.js";
+import { requireAuth } from "../middlewares/index.js";
 
 const router = express.Router();
 
 router.get("/", requireAuth, getAllTransactions);
 router.get("/:id", requireAuth, getTransactionById);
-router.post(
-  "/create",
-  requireAuth,
-  requirePermission("transaction", "create"),
-  createTransaction,
-);
+router.post("/create", requireAuth, createTransaction);
 router.put("/:id", requireAuth, updateTransaction);
-router.post(
-  "/:id/approve",
-  requireAuth,
-  requirePermission("transaction", "approve"),
-  approveTransaction,
-);
-router.post(
-  "/:id/reject",
-  requireAuth,
-  requirePermission("transaction", "approve"),
-  rejectTransaction,
-);
+router.delete("/:id", requireAuth, deleteTransaction);
 
 export default router;

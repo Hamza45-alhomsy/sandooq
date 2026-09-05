@@ -81,7 +81,7 @@ async function createDefaultWorkspace(adminUserId: number) {
   const workspaceName = "My Company";
 
   // ✅ Use findFirst (not findUnique) and correct casing
-  let workspace = await prisma.Workspace.findFirst({
+  let workspace = await prisma.workspace.findFirst({
     where: { name: workspaceName },
   });
 
@@ -90,7 +90,7 @@ async function createDefaultWorkspace(adminUserId: number) {
     return workspace;
   }
 
-  workspace = await prisma.Workspace.create({
+  workspace = await prisma.workspace.create({
     data: {
       name: workspaceName,
       ownerId: adminUserId,
@@ -103,7 +103,7 @@ async function createDefaultWorkspace(adminUserId: number) {
   });
   if (!adminRole) throw new Error("Admin role not found.");
 
-  await prisma.WorkspaceMember.create({
+  await prisma.workspaceMember.create({
     data: {
       userId: adminUserId,
       workspaceId: workspace.id,
@@ -142,11 +142,11 @@ async function main() {
   // --- 2. Permissions ---
   const permissions = [
     // Admin
-    { roleId: adminRole.id, resource: "order", action: "view_all" },
-    { roleId: adminRole.id, resource: "order", action: "create" },
-    { roleId: adminRole.id, resource: "order", action: "approve" },
-    { roleId: adminRole.id, resource: "order", action: "execute" },
-    { roleId: adminRole.id, resource: "order", action: "delete" },
+    { roleId: adminRole.id, resource: "transaction", action: "view_all" },
+    { roleId: adminRole.id, resource: "transaction", action: "create" },
+    { roleId: adminRole.id, resource: "transaction", action: "approve" },
+    { roleId: adminRole.id, resource: "transaction", action: "execute" },
+    { roleId: adminRole.id, resource: "transaction", action: "delete" },
     { roleId: adminRole.id, resource: "user", action: "manage" },
     { roleId: adminRole.id, resource: "fund", action: "view" },
     { roleId: adminRole.id, resource: "fund", action: "manage" },
@@ -155,43 +155,130 @@ async function main() {
     { roleId: adminRole.id, resource: "audit", action: "view" },
     { roleId: adminRole.id, resource: "setting", action: "manage" },
     // Investor
-    { roleId: investorRole.id, resource: "order", action: "view_all" },
+    { roleId: investorRole.id, resource: "transaction", action: "view_all" },
     { roleId: investorRole.id, resource: "fund", action: "view" },
     { roleId: investorRole.id, resource: "report", action: "view" },
     // Client
-    { roleId: clientRole.id, resource: "order", action: "create" },
-    { roleId: clientRole.id, resource: "order", action: "view_own" },
+    { roleId: clientRole.id, resource: "transaction", action: "create" },
+    { roleId: clientRole.id, resource: "transaction", action: "view_own" },
   ];
 
-  await prisma.permission.createMany({
-    data: permissions,
-    skipDuplicates: true,
-  });
+  for (const permission of permissions) {
+    await prisma.permission.upsert({
+      where: {
+        roleId_resource_action: {
+          roleId: permission.roleId,
+          resource: permission.resource,
+          action: permission.action,
+        },
+      },
+      update: {},
+      create: permission,
+    });
+  }
+
+  const adminUser = await getOrCreateAdminUser();
+  const workspace = await createDefaultWorkspace(adminUser.id);
 
   // --- 3. Categories ---
   const categories = [
-    { name: "Investment Returns", type: "income" },
-    { name: "Project Income", type: "income" },
-    { name: "Management Fees", type: "income" },
-    { name: "Operational", type: "expense" },
-    { name: "Salaries", type: "expense" },
-    { name: "Marketing", type: "expense" },
-    { name: "Technology", type: "expense" },
-    { name: "Professional Services", type: "expense" },
-    { name: "Travel", type: "expense" },
-    { name: "Office", type: "expense" },
-    { name: "Other Income", type: "income" },
-    { name: "Other Expenses", type: "expense" },
+    {
+      name: "Investment Returns",
+      nameAr: "عوائد الاستثمار",
+      type: "income",
+      workspaceId: workspace.id,
+    },
+    {
+      name: "Project Income",
+      nameAr: "إيرادات المشاريع",
+      type: "income",
+      workspaceId: workspace.id,
+    },
+    {
+      name: "Management Fees",
+      nameAr: "رسوم الإدارة",
+      type: "income",
+      workspaceId: workspace.id,
+    },
+    {
+      name: "Operational",
+      nameAr: "تشغيلية",
+      type: "expense",
+      workspaceId: workspace.id,
+    },
+    {
+      name: "Salaries",
+      nameAr: "الرواتب",
+      type: "expense",
+      workspaceId: workspace.id,
+    },
+    {
+      name: "Marketing",
+      nameAr: "التسويق",
+      type: "expense",
+      workspaceId: workspace.id,
+    },
+    {
+      name: "Technology",
+      nameAr: "التقنية",
+      type: "expense",
+      workspaceId: workspace.id,
+    },
+    {
+      name: "Professional Services",
+      nameAr: "الخدمات المهنية",
+      type: "expense",
+      workspaceId: workspace.id,
+    },
+    {
+      name: "Travel",
+      nameAr: "السفر",
+      type: "expense",
+      workspaceId: workspace.id,
+    },
+    {
+      name: "Office",
+      nameAr: "المكتب",
+      type: "expense",
+      workspaceId: workspace.id,
+    },
+    {
+      name: "Other Income",
+      nameAr: "إيرادات أخرى",
+      type: "income",
+      workspaceId: workspace.id,
+    },
+    {
+      name: "Other Expenses",
+      nameAr: "مصروفات أخرى",
+      type: "expense",
+      workspaceId: workspace.id,
+    },
   ];
 
-  await prisma.category.createMany({
-    data: categories,
-    skipDuplicates: true,
-  });
+  for (const category of categories) {
+    await prisma.category.upsert({
+      where: {
+        workspaceId_name: {
+          workspaceId: category.workspaceId,
+          name: category.name,
+        },
+      },
+      update: { nameAr: category.nameAr, type: category.type },
+      create: category,
+    });
+  }
 
   // --- 4. Fund ---
   await prisma.fund.createMany({
-    data: [{ id: 1, name: "Main Fund", currentBalance: 0, currency: "SYP" }],
+    data: [
+      {
+        name: "Main Fund",
+        currentBalance: 0,
+        currency: "SYP",
+        workspaceId: workspace.id,
+      },
+    ],
     skipDuplicates: true,
   });
 
@@ -202,9 +289,20 @@ async function main() {
       value: "My Company",
       group: "company",
       description: "Company name",
+      workspaceId: workspace.id,
     },
-    { key: "currency", value: "SYP", group: "financial" },
-    { key: "require_approval", value: "true", group: "system" },
+    {
+      key: "currency",
+      value: "SYP",
+      group: "financial",
+      workspaceId: workspace.id,
+    },
+    {
+      key: "require_approval",
+      value: "true",
+      group: "system",
+      workspaceId: workspace.id,
+    },
   ];
 
   await prisma.setting.createMany({
@@ -213,11 +311,6 @@ async function main() {
   });
 
   // --- 6. Create Admin User ---
-  const adminUser = await getOrCreateAdminUser();
-
-  // --- 7. Create Default Workspace for Admin ---
-  await createDefaultWorkspace(adminUser.id);
-
   console.log("✅ Seeding complete!");
   console.log("👑 Admin credentials: admin@system.com / Admin123!");
   console.log("🏢 Default workspace: 'My Company' created and linked.");

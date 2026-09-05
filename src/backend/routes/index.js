@@ -8,6 +8,5 @@ export { default as auditRoutes } from "./audit.routes.js";
 export { default as settingsRoutes } from "./settings.routes.js";
 export { default as documentRoutes } from "./document.routes.js";
 export { default as dashboardRoutes } from "./dashboard.routes.js";
-export { default as rolesRoutes } from "./roles.routes.js";
 export { default as categoryRoutes } from "./category.routes.js";
 export { default as workspaceRoutes } from "./workspace.routes.js";

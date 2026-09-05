@@ -18,14 +18,7 @@ export const uploadDocument = async (req, res) => {
     if (!transaction)
       return res.status(404).json({ error: "Transaction not found" });
 
-    const canViewAll = await prisma.permission.findFirst({
-      where: {
-        roleId: req.user.roleId,
-        resource: "transaction",
-        action: "view_all",
-      },
-    });
-    if (!canViewAll && transaction.userId !== req.user.id) {
+    if (transaction.userId !== req.user.id) {
       return res.status(403).json({ error: "Access denied" });
     }
 

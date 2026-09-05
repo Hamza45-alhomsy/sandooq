@@ -21,13 +21,11 @@ import { cn } from "@/lib/utils";
 
 interface TransactionsFiltersProps {
   search: string;
-  status: string;
   type: string;
   startDate?: Date;
   endDate?: Date;
   locale: string;
   onSearchChange: (value: string) => void;
-  onStatusChange: (value: string | null) => void;
   onTypeChange: (value: string | null) => void;
   onStartDateChange: (date?: Date) => void;
   onEndDateChange: (date?: Date) => void;
@@ -38,13 +36,11 @@ interface TransactionsFiltersProps {
 
 export function TransactionsFilters({
   search,
-  status,
   type,
   startDate,
   endDate,
   locale,
   onSearchChange,
-  onStatusChange,
   onTypeChange,
   onStartDateChange,
   onEndDateChange,
@@ -62,21 +58,9 @@ export function TransactionsFilters({
           <SearchInput
             value={search}
             onChange={onSearchChange}
-            placeholder={t("Common.search") || "Search..."}
+            placeholder={t("Transactions.searchPlaceholder")}
           />
         </div>
-
-        <Select value={status} onValueChange={onStatusChange}>
-          <SelectTrigger className="w-[150px]">
-            <SelectValue placeholder={t("Transactions.status")} />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="">{t("Common.all") || "All"}</SelectItem>
-            <SelectItem value="pending">{t("Common.pending")}</SelectItem>
-            <SelectItem value="approved">{t("Common.approved")}</SelectItem>
-            <SelectItem value="rejected">{t("Common.rejected")}</SelectItem>
-          </SelectContent>
-        </Select>
 
         <Select value={type} onValueChange={onTypeChange}>
           <SelectTrigger className="w-[130px]">

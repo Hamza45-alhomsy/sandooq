@@ -35,6 +35,35 @@ interface LoginDialogProps {
   defaultTab?: "login" | "signup";
 }
 
+const getAuthErrorMessage = (
+  t: (key: string) => string,
+  error: any,
+  context: "login" | "signup" | "reset" | "google",
+) => {
+  const code = error?.code || "";
+
+  if (code === "auth/invalid-email") return t("AuthErrors.invalidEmail");
+  if (code === "auth/user-not-found") return t("AuthErrors.userNotFound");
+  if (code === "auth/wrong-password" || code === "auth/invalid-credential") {
+    return t("AuthErrors.invalidCredentials");
+  }
+  if (code === "auth/email-already-in-use") {
+    return t("AuthErrors.emailAlreadyInUse");
+  }
+  if (code === "auth/weak-password") return t("AuthErrors.weakPassword");
+  if (code === "auth/too-many-requests") return t("AuthErrors.tooManyRequests");
+  if (code === "auth/popup-closed-by-user") return t("AuthErrors.popupClosed");
+  if (code === "auth/network-request-failed") return t("AuthErrors.network");
+
+  return context === "login"
+    ? t("Login.loginFailed")
+    : context === "signup"
+      ? t("SignUp.error")
+      : context === "reset"
+        ? t("AuthErrors.resetFailed")
+        : t("Login.googleFailed");
+};
+
 export function LoginDialog({
   children,
   variant = "default",
@@ -60,14 +89,14 @@ export function LoginDialog({
 
   const handleForgotPassword = async () => {
     if (!loginEmail) {
-      toast.error("Please enter your email address first.");
+      toast.error(t("AuthErrors.resetEmailRequired"));
       return;
     }
     try {
       await sendPasswordResetEmail(auth, loginEmail);
-      toast.success("Password reset email sent! Check your inbox.");
+      toast.success(t("AuthErrors.resetSent"));
     } catch (error: any) {
-      toast.error(error.message || "Failed to send reset email.");
+      toast.error(getAuthErrorMessage(t, error, "reset"));
     }
   };
 
@@ -82,9 +111,7 @@ export function LoginDialog({
       router.replace("/dashboard");
     } catch (error: any) {
       console.error(error);
-      toast.error(
-        error.message || t("Login.googleFailed") || "Google sign-in failed",
-      );
+      toast.error(getAuthErrorMessage(t, error, "google"));
     }
   };
 
@@ -97,7 +124,7 @@ export function LoginDialog({
       setOpen(false);
       router.push("/dashboard");
     } catch (error: any) {
-      toast.error(error.message || t("Login.loginFailed"));
+      toast.error(getAuthErrorMessage(t, error, "login"));
     } finally {
       setLoginLoading(false);
     }
@@ -127,7 +154,11 @@ export function LoginDialog({
       const data = await response.json();
 
       if (!response.ok) {
-        toast.error(data.error || t("SignUp.error"));
+        const message =
+          data.error === "Email already registered"
+            ? t("AuthErrors.emailAlreadyInUse")
+            : t("SignUp.error");
+        toast.error(message);
         return;
       }
 
@@ -142,7 +173,7 @@ export function LoginDialog({
       }, 600);
     } catch (error: any) {
       console.error("Signup error:", error);
-      toast.error(error.message || t("SignUp.error"));
+      toast.error(getAuthErrorMessage(t, error, "signup"));
     } finally {
       setSignupLoading(false);
     }

@@ -1,5 +1,4 @@
 "use client";
-import { useSettings } from "@/hooks/useSettings";
 import { useAuth } from "@/contexts/AuthContext";
 import { useRouter } from "@/i18n/routing";
 
@@ -16,10 +15,12 @@ import {
 } from "@/components/ui/card";
 import {
   ArrowRight,
+  ChartNoAxesCombined,
   CheckCircle,
+  ClipboardList,
   FileText,
+  Tags,
   Wallet,
-  ShieldCheck,
 } from "lucide-react";
 import { LoginDialog } from "@/components/LogInDialog";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -29,7 +30,6 @@ export default function LandingPage() {
   const t = useTranslations("Landing");
   const router = useRouter();
   const { user, loading } = useAuth();
-  const { companyName, isLoading: settingsLoading } = useSettings();
 
   useEffect(() => {
     if (!loading && user) {
@@ -50,24 +50,29 @@ export default function LandingPage() {
 
   const features = [
     {
-      icon: FileText,
-      title: t("feature1Title"),
-      description: t("feature1Desc"),
-    },
-    {
       icon: Wallet,
       title: t("feature2Title"),
       description: t("feature2Desc"),
     },
     {
-      icon: ShieldCheck,
-      title: t("feature3Title"),
-      description: t("feature3Desc"),
+      icon: ClipboardList,
+      title: t("feature5Title"),
+      description: t("feature5Desc"),
     },
     {
       icon: CheckCircle,
       title: t("feature4Title"),
       description: t("feature4Desc"),
+    },
+    {
+      icon: Tags,
+      title: t("feature6Title"),
+      description: t("feature6Desc"),
+    },
+    {
+      icon: ChartNoAxesCombined,
+      title: t("feature7Title"),
+      description: t("feature7Desc"),
     },
   ];
 
@@ -77,7 +82,7 @@ export default function LandingPage() {
       <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-backdrop-blur:bg-background/60">
         <div className="container mx-auto flex h-16 items-center justify-between px-4">
           <div className="flex items-center gap-2">
-            <span className="text-xl font-bold"> {companyName}</span>
+            <span className="text-xl font-bold">{t("title")}</span>
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />
@@ -132,7 +137,7 @@ export default function LandingPage() {
               <p className="text-muted-foreground">{t("featureSubtitle")}</p>
             </div>
 
-            <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-5">
               {features.map((feature, index) => {
                 const Icon = feature.icon;
                 return (

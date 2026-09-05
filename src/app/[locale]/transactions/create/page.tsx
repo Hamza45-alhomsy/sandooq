@@ -42,7 +42,7 @@ const transactionSchema = z.object({
   type: z.enum(["income", "expense"], {
     required_error: "نوع الطلب مطلوب",
   }),
-  description: z.string().optional(),
+  description: z.string().trim().min(1, "عنوان المعاملة مطلوب"),
   items: z
     .array(
       z.object({
@@ -131,7 +131,11 @@ export default function CreateTransactionPage() {
   );
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { currency } = useSettings();
-  const { data: categories = [] } = useSWR("/api/categories", fetcher);
+  const { data: categories = [] } = useSWR("/api/categories", fetcher, {
+    revalidateOnMount: true,
+    revalidateIfStale: true,
+    revalidateOnFocus: true,
+  });
 
   const {
     register,
@@ -406,10 +410,6 @@ export default function CreateTransactionPage() {
   return (
     <MainLayout>
       <div className="max-w-3xl mx-auto">
-        <h1 className="mb-6 text-2xl font-bold">
-          {t("CreateTransaction.title")}
-        </h1>
-
         <form onSubmit={handleSubmit(onSubmit)}>
           <Card>
             <CardHeader>
@@ -450,11 +450,19 @@ export default function CreateTransactionPage() {
               </div>
 
               <div>
-                <Label>{t("CreateTransaction.description")}</Label>
+                <Label>{t("CreateTransaction.transactionTitle")}</Label>
                 <Input
                   {...register("description")}
-                  placeholder={t("CreateTransaction.descriptionPlaceholder")}
+                  placeholder={t(
+                    "CreateTransaction.transactionTitlePlaceholder",
+                  )}
+                  required
                 />
+                {errors.description && (
+                  <p className="text-sm text-red-500">
+                    {errors.description.message}
+                  </p>
+                )}
               </div>
 
               <div>

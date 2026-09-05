@@ -3,6 +3,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { useRouter } from "@/i18n/routing";
 import { useAuth } from "@/contexts/AuthContext";
 import { MainLayout } from "@/components/layout/MainLayout";
 import { Button } from "@/components/ui/button";
@@ -17,6 +18,15 @@ import {
 } from "@/components/ui/card";
 import { toast } from "sonner";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { LogOut } from "lucide-react";
+import {
   updatePassword,
   reauthenticateWithCredential,
   EmailAuthProvider,
@@ -25,9 +35,9 @@ import { auth } from "@/lib/firebase/config";
 
 export default function ProfilePage() {
   const t = useTranslations();
-  const { user, token } = useAuth();
+  const { user, token, logout } = useAuth();
+  const router = useRouter();
   const [fullName, setFullName] = useState(user?.fullName || "");
-  const [phone, setPhone] = useState(user?.phone || "");
   const [loading, setLoading] = useState(false);
 
   // Change Password state
@@ -35,6 +45,8 @@ export default function ProfilePage() {
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [passwordLoading, setPasswordLoading] = useState(false);
+  const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
+  const [loggingOut, setLoggingOut] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -50,7 +62,7 @@ export default function ProfilePage() {
             "Content-Type": "application/json",
             Authorization: `Bearer ${token}`,
           },
-          body: JSON.stringify({ fullName, phone }),
+          body: JSON.stringify({ fullName }),
         },
       );
 
@@ -129,10 +141,6 @@ export default function ProfilePage() {
   return (
     <MainLayout>
       <div className="max-w-2xl mx-auto space-y-6">
-        <h1 className="mb-6 text-2xl font-bold">
-          {t("Profile.title") || "Profile"}
-        </h1>
-
         {/* ===== UPDATE PROFILE CARD ===== */}
         <Card>
           <CardHeader>
@@ -171,25 +179,35 @@ export default function ProfilePage() {
                   minLength={2}
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="phone">{t("Profile.phone") || "Phone"}</Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label>{t("Profile.role") || "Role"}</Label>
-                <Input value={user?.role || ""} disabled className="bg-muted" />
-              </div>
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading
                   ? t("Common.saving") || "Saving..."
                   : t("Common.save") || "Save Changes"}
               </Button>
             </form>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>{t("Settings.account")}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <Label>{t("Profile.email") || "Email"}</Label>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {user?.email || "—"}
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="destructive"
+              className="gap-2"
+              onClick={() => setLogoutDialogOpen(true)}
+            >
+              <LogOut className="h-4 w-4" />
+              {t("Common.logout")}
+            </Button>
           </CardContent>
         </Card>
 
@@ -261,6 +279,44 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
       </div>
+
+      <Dialog open={logoutDialogOpen} onOpenChange={setLogoutDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t("Settings.logoutConfirmTitle")}</DialogTitle>
+            <DialogDescription>
+              {t("Settings.logoutConfirmDescription")}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => setLogoutDialogOpen(false)}
+              disabled={loggingOut}
+            >
+              {t("Settings.cancel")}
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={async () => {
+                setLoggingOut(true);
+                try {
+                  await logout();
+                  router.push("/");
+                } finally {
+                  setLoggingOut(false);
+                  setLogoutDialogOpen(false);
+                }
+              }}
+              disabled={loggingOut}
+            >
+              {loggingOut ? t("Common.loading") : t("Settings.confirmLogout")}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </MainLayout>
   );
 }

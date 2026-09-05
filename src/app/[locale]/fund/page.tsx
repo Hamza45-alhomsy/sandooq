@@ -31,11 +31,7 @@ export default function FundPage() {
 
   return (
     <MainLayout>
-      <h1 className="mb-6 text-2xl font-bold">{t("FundPage.title")}</h1>
       <Card className="max-w-md">
-        <CardHeader>
-          <CardTitle>{data?.name || t("FundPage.cardTitle")}</CardTitle>
-        </CardHeader>
         <CardContent>
           <p className="text-4xl font-bold text-primary">
             {data?.currentBalance?.toLocaleString()} {currency || "SYP"}

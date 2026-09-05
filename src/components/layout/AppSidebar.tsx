@@ -13,86 +13,62 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
-import { useRouter } from "@/i18n/routing";
 import { useTranslations } from "next-intl";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import {
   LayoutDashboard,
   Package,
   Wallet,
-  Users,
-  FileText,
   Settings,
-  LogOut,
   Moon,
   Sun,
+  Plus,
+  ChartNoAxesCombined,
+  Tags,
+  UserRound,
+  ClipboardList,
 } from "lucide-react";
 import { useTheme } from "@teispace/next-themes";
 import { LanguageToggle } from "@/components/LanguageToggle";
-import { useState, useEffect } from "react";
+import { useLocale } from "next-intl";
 import { Link } from "@/i18n/routing";
+import { usePathname } from "next/navigation";
 
 export function AppSidebar() {
-  const { user, logout, switchWorkspace } = useAuth();
+  const { user } = useAuth();
   const { companyName } = useSettings();
-  const router = useRouter();
   const t = useTranslations("Sidebar");
+  const locale = useLocale();
+  const pathname = usePathname();
   const { theme, setTheme } = useTheme();
-  const [activeWorkspaceId, setActiveWorkspaceId] = useState<number | null>(
-    null,
-  );
-
-  useEffect(() => {
-    const stored = localStorage.getItem("activeWorkspaceId");
-    if (stored) {
-      setActiveWorkspaceId(parseInt(stored, 10));
-    } else if (user?.workspaces && user.workspaces.length > 0) {
-      // If no stored workspace, default to the first one
-      const first = user.workspaces[0].id;
-      setActiveWorkspaceId(first);
-      localStorage.setItem("activeWorkspaceId", String(first));
-    }
-  }, [user]);
-
-  const handleWorkspaceChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const workspaceId = parseInt(e.target.value, 10);
-    setActiveWorkspaceId(workspaceId);
-    localStorage.setItem("activeWorkspaceId", String(workspaceId));
-    switchWorkspace(workspaceId);
-  };
 
   const navItems = [
     { href: "/dashboard", label: t("dashboard"), icon: LayoutDashboard },
-    { href: "/orders", label: t("orders"), icon: Package },
+    { href: "/transactions", label: t("transactions"), icon: Package },
   ];
 
-  if (user?.permissions.includes("fund:view")) {
-    navItems.push({ href: "/fund", label: t("fund"), icon: Wallet });
-  }
-
-  if (user?.permissions.includes("user:manage")) {
-    navItems.push({ href: "/users", label: t("users"), icon: Users });
-  }
-  if (user?.permissions.includes("audit:view")) {
-    navItems.push({ href: "/audit", label: t("audit"), icon: FileText });
-  }
-  if (user?.permissions.includes("setting:manage")) {
-    navItems.push({ href: "/settings", label: t("settings"), icon: Settings });
-  }
+  navItems.push(
+    { href: "/fund", label: t("fund"), icon: Wallet },
+    { href: "/analyzing", label: t("analyzing"), icon: ChartNoAxesCombined },
+    { href: "/categories", label: t("categories"), icon: Tags },
+    { href: "/audit", label: t("audit"), icon: ClipboardList },
+    { href: "/profile", label: t("profile"), icon: UserRound },
+    { href: "/settings", label: t("settings"), icon: Settings },
+  );
 
   const toggleTheme = () => setTheme(theme === "dark" ? "light" : "dark");
 
   const userInitial = user?.fullName?.charAt(0)?.toUpperCase() || "?";
 
-  const currentWorkspace = user?.workspaces?.find(
-    (w: any) => w.id === activeWorkspaceId,
-  );
+  const canCreateTransaction = Boolean(user);
 
   return (
     <Sidebar
       collapsible="icon"
       variant="inset"
-      className="border-l min-w-0 max-w-[--sidebar-width] overflow-hidden shrink-0"
+      side={locale === "ar" ? "right" : "left"}
+      dir={locale === "ar" ? "rtl" : "ltr"}
+      className="min-w-0 max-w-[--sidebar-width] overflow-hidden shrink-0"
       style={{
         width: "var(--sidebar-width)",
         maxWidth: "var(--sidebar-width)",
@@ -101,38 +77,32 @@ export function AppSidebar() {
     >
       <SidebarHeader className="border-b p-4">
         <div className="flex items-center gap-2 min-w-0">
-          <span className="text-xl font-bold truncate">💰 {companyName}</span>
+          <span className="text-xl font-bold truncate"> {companyName}</span>
         </div>
       </SidebarHeader>
 
-      {/* Workspace Selector */}
-      <div className="border-b p-3">
-        <select
-          className="w-full rounded-md border bg-background p-2 text-sm"
-          value={activeWorkspaceId ?? ""}
-          onChange={handleWorkspaceChange}
-        >
-          <option value="">Select Workspace</option>
-          {user?.workspaces?.map((ws: any) => (
-            <option key={ws.id} value={ws.id}>
-              {ws.name}
-            </option>
-          ))}
-        </select>
-        <p className="text-xs text-muted-foreground mt-1">
-          {currentWorkspace?.name || "No workspace selected"}
-        </p>
-      </div>
-
       <SidebarContent>
+        {canCreateTransaction && (
+          <div className="px-2 pt-2">
+            <SidebarMenuButton
+              render={<Link href="/transactions/create" />}
+              tooltip={t("newTransaction")}
+              className="bg-primary text-primary-foreground hover:bg-primary/90 hover:text-primary-foreground"
+            >
+              <Plus className="h-4 w-4 shrink-0" />
+              <span className="truncate">{t("newTransaction")}</span>
+            </SidebarMenuButton>
+          </div>
+        )}
         <SidebarMenu>
           {navItems.map((item) => {
-            const isActive = window.location.pathname.includes(item.href);
+            const isActive = pathname.includes(item.href);
             return (
               <SidebarMenuItem key={item.href}>
                 <SidebarMenuButton
                   render={<Link href={item.href} />}
                   isActive={isActive}
+                  className={isActive ? "bg-primary " : undefined}
                 >
                   <item.icon className="h-4 w-4 shrink-0" />
                   <span className="truncate">{item.label}</span>
@@ -150,9 +120,6 @@ export function AppSidebar() {
           </Avatar>
           <div className="flex-1 truncate text-sm">
             <p className="font-medium truncate">{user?.fullName}</p>
-            <p className="text-xs text-muted-foreground truncate">
-              {user?.role}
-            </p>
           </div>
         </div>
 
@@ -176,19 +143,6 @@ export function AppSidebar() {
         </Button>
 
         <LanguageToggle />
-
-        <Button
-          variant="outline"
-          size="sm"
-          className="w-full justify-start gap-2"
-          onClick={async () => {
-            await logout();
-            router.push("/");
-          }}
-        >
-          <LogOut className="h-4 w-4" />
-          <span>{t("logout")}</span>
-        </Button>
       </SidebarFooter>
     </Sidebar>
   );

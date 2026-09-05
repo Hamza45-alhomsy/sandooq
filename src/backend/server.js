@@ -17,7 +17,6 @@ import {
   settingsRoutes,
   documentRoutes,
   dashboardRoutes,
-  rolesRoutes,
   categoryRoutes,
   workspaceRoutes,
 } from "./routes/index.js";
@@ -46,7 +45,7 @@ app.use(express.json());
 app.use("/uploads", express.static("uploads"));
 
 // ============ MOUNT ROUTES ============
-app.use("/api/test", testRoutes);
+app.use("/", testRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/transactions", transactionRoutes);
@@ -55,7 +54,6 @@ app.use("/api/audit-logs", auditRoutes);
 app.use("/api/settings", settingsRoutes);
 app.use("/api/documents", documentRoutes);
 app.use("/api/dashboard", dashboardRoutes);
-app.use("/api/roles", rolesRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/workspaces", workspaceRoutes);
 

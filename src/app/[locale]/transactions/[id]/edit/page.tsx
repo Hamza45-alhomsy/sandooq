@@ -27,12 +27,12 @@ import { fetcher } from "@/lib/api/fetcher";
 // Zod schema (matches backend)
 const transactionSchema = z.object({
   type: z.enum(["income", "expense"]),
-  description: z.string().optional(),
+  description: z.string().trim().min(1, "Transaction title is required"),
   items: z
     .array(
       z.object({
         description: z.string().min(1, "Description is required"),
-        quantity: z.number().int().positive("Quantity must be at least 1"),
+        quantity: z.number().positive("Quantity must be greater than 0"),
         unitPrice: z.number().positive("Unit price must be greater than 0"),
       }),
     )
@@ -161,29 +161,10 @@ export default function EditTransactionPage() {
     );
   }
 
-  // Only pending transactions can be edited
-  if (transaction.status !== "pending") {
-    return (
-      <MainLayout>
-        <div className="text-center py-8">
-          <p className="text-muted-foreground">
-            {t("TransactionDetail.noLongerPending")}
-          </p>
-          <Button className="mt-4" onClick={() => router.push(`/transactions/${id}`)}>
-            {t("TransactionDetail.view")}
-          </Button>
-        </div>
-      </MainLayout>
-    );
-  }
-
   return (
     <MainLayout>
       <div className="max-w-3xl mx-auto">
         <div className="flex items-center justify-between mb-6">
-          <h1 className="text-2xl font-bold">
-            {t("TransactionDetail.editTransaction")} {transaction.transactionNumber}
-          </h1>
           <Button variant="outline" onClick={() => router.back()}>
             {t("Common.back")}
           </Button>
@@ -205,7 +186,9 @@ export default function EditTransactionPage() {
                   defaultValue={transaction.type}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder={t("CreateTransaction.selectType")} />
+                    <SelectValue
+                      placeholder={t("CreateTransaction.selectType")}
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="income">{t("Common.income")}</SelectItem>
@@ -223,11 +206,19 @@ export default function EditTransactionPage() {
 
               {/* Description */}
               <div>
-                <Label>{t("CreateTransaction.description")}</Label>
+                <Label>{t("CreateTransaction.transactionTitle")}</Label>
                 <Input
                   {...register("description")}
-                  placeholder={t("CreateTransaction.descriptionPlaceholder")}
+                  placeholder={t(
+                    "CreateTransaction.transactionTitlePlaceholder",
+                  )}
+                  required
                 />
+                {errors.description && (
+                  <p className="text-sm text-red-500">
+                    {errors.description.message}
+                  </p>
+                )}
               </div>
 
               {/* Items */}
@@ -252,6 +243,7 @@ export default function EditTransactionPage() {
                           valueAsNumber: true,
                         })}
                         type="number"
+                        step="0.01"
                         placeholder="Qty"
                       />
                       {errors.items?.[index]?.quantity && (

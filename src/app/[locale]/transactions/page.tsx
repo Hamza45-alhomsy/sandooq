@@ -16,7 +16,7 @@ export default function TransactionsPage() {
   const t = useTranslations();
   const locale = useLocale();
   const { user } = useAuth();
-  const { currency, requireApproval } = useSettings();
+  const { currency } = useSettings();
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   const {
@@ -24,12 +24,10 @@ export default function TransactionsPage() {
     error,
     isLoading,
     search,
-    status,
     type,
     startDate,
     endDate,
     setSearch,
-    setStatus,
     setType,
     setStartDate,
     setEndDate,
@@ -62,23 +60,20 @@ export default function TransactionsPage() {
   return (
     <MainLayout>
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-        <h1 className="text-2xl font-bold">{t("Transactions.title")}</h1>
-        {user?.permissions.includes("transaction:create") && (
-          <Link href="/transactions/create">
-            <Button className="w-full sm:w-auto">{t("Transactions.newTransaction")}</Button>
-          </Link>
-        )}
+        <Link href="/transactions/create">
+          <Button className="w-full sm:w-auto">
+            {t("Transactions.newTransaction")}
+          </Button>
+        </Link>
       </div>
 
       <TransactionsFilters
         search={search}
-        status={status}
         type={type}
         startDate={startDate}
         endDate={endDate}
         locale={locale}
         onSearchChange={setSearch}
-        onStatusChange={setStatus}
         onTypeChange={setType}
         onStartDateChange={setStartDate}
         onEndDateChange={setEndDate}
@@ -96,7 +91,6 @@ export default function TransactionsPage() {
         transactions={transactions}
         currency={currency}
         t={t}
-        requireApproval={requireApproval}
       />
     </MainLayout>
   );

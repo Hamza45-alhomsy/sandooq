@@ -11,7 +11,7 @@ export async function ensureWorkspace(req, res, next) {
       ? parseInt(req.headers["x-workspace-id"])
       : null;
 
-    const userWorkspaces = await prisma.WorkspaceMember.findMany({
+    const userWorkspaces = await prisma.workspaceMember.findMany({
       where: { userId: req.user.id },
       include: { workspace: true },
     });
@@ -37,14 +37,8 @@ export async function ensureWorkspace(req, res, next) {
     }
 
     req.user.workspaceId = workspaceId;
-    req.user.workspaceRoleId = membership.roleId;
     req.user.workspace = membership.workspace;
-
-    const role = await prisma.role.findUnique({
-      where: { id: membership.roleId },
-      include: { permissions: true },
-    });
-    req.user.workspacePermissions = role?.permissions || [];
+    req.user.memberships = userWorkspaces;
 
     next();
   } catch (error) {
@@ -67,20 +61,18 @@ export function createInvitationToken() {
 export async function createWorkspaceInvitation({
   email,
   workspaceId,
-  roleId,
   invitedBy,
   expiresInHours = 72, // default: 3 days
 }) {
   const token = createInvitationToken();
   const expiresAt = new Date(Date.now() + expiresInHours * 60 * 60 * 1000);
 
-  return await prisma.WorkspaceInvitation.create({
+  return await prisma.workspaceInvitation.create({
     data: {
       email,
       token,
       workspaceId,
-      roleId,
-      invitedBy,
+      invitedById: invitedBy,
       expiresAt,
       status: "pending",
     },
@@ -89,9 +81,9 @@ export async function createWorkspaceInvitation({
 
 // ✅ Verify an invitation token
 export async function verifyInvitationToken(token) {
-  const invitation = await prisma.WorkspaceInvitation.findUnique({
+  const invitation = await prisma.workspaceInvitation.findUnique({
     where: { token },
-    include: { workspace: true, role: true },
+    include: { workspace: true },
   });
 
   if (!invitation) {

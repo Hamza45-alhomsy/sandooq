@@ -4,17 +4,12 @@ import {
   getSettings,
   updateSettings,
 } from "../controllers/settings.controller.js";
-import { requireAuth, requirePermission } from "../middlewares/index.js";
+import { requireAuth } from "../middlewares/index.js";
 
 const router = express.Router();
 
 router.get("/", requireAuth, getSettings);
 
-router.put(
-  "/",
-  requireAuth,
-  requirePermission("setting", "manage"),
-  updateSettings,
-);
+router.put("/", requireAuth, updateSettings);
 
 export default router;

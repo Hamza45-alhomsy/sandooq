@@ -20,12 +20,11 @@ export interface User {
   id: number;
   email: string;
   fullName: string;
-  role: string;
-  permissions: string[];
   isActive: boolean;
   phone?: string;
-  workspace: { id: number; name: string; role: string };
-  workspaces: { id: number; name: string; role: string }[];
+  workspaceId?: number | null;
+  workspace?: { id: number; name: string; role: string };
+  workspaces?: { id: number; name: string; role: string }[];
 }
 
 interface AuthContextType {
@@ -48,109 +47,87 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     isMounted.current = true;
 
-    // 🔥 1. Wait for Firebase to restore the session before doing anything
-    const initAuth = async () => {
-      try {
-        await auth.authStateReady();
+    // 🔥 Single source of truth: onAuthStateChanged
+    const unsubscribe = onAuthStateChanged(
+      auth,
+      async (firebaseUser: FirebaseUser | null) => {
         if (!isMounted.current) return;
 
-        const firebaseUser = auth.currentUser;
+        console.log(
+          "🔥 1. onAuthStateChanged fired. User:",
+          firebaseUser?.email || "null",
+        );
+
+        // Start loading
+        setLoading(true);
 
         if (firebaseUser) {
-          // User is authenticated – verify with backend
           try {
+            // Get fresh ID token
             const idToken = await firebaseUser.getIdToken(true);
+            console.log("✅ 2. Token obtained:", idToken.slice(0, 20) + "...");
             setToken(idToken);
 
+            // ✅ Send token and active workspace in request headers
+            const activeWorkspaceId = localStorage.getItem("activeWorkspaceId");
             const res = await fetch(`${API_URL}/api/auth/verify`, {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ token: idToken }),
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${idToken}`,
+                ...(activeWorkspaceId
+                  ? { "x-workspace-id": activeWorkspaceId }
+                  : {}),
+              },
+              // ❌ No body – token is in the header
             });
 
-            if (res.status === 401 || res.status === 403) {
-              console.warn("Token invalid or user disabled.");
-              await signOut(auth);
-              setUser(null);
-              setToken(null);
-            } else if (res.ok) {
+            console.log("📡 3. /api/auth/verify status:", res.status);
+
+            if (res.ok) {
               const data = await res.json();
+              console.log("👤 4. User data received:", data.user);
               setUser(data.user);
+
+              // ✅ Store active workspace ID for API requests
+              if (!activeWorkspaceId && data.user?.workspaceId) {
+                localStorage.setItem(
+                  "activeWorkspaceId",
+                  String(data.user.workspaceId),
+                );
+              }
+
+              console.log("✅ 5. User state set.");
             } else {
-              console.error("Backend error:", res.status);
+              const errorText = await res.text();
+              console.error("❌ 6. /api/auth/verify failed:", errorText);
+
+              // If token invalid, sign out
+              if (res.status === 401 || res.status === 403) {
+                await signOut(auth);
+              }
               setUser(null);
               setToken(null);
             }
           } catch (error) {
-            console.error("Network error:", error);
+            console.error("❌ 7. Error in auth flow:", error);
             setUser(null);
             setToken(null);
           }
         } else {
-          // No user at all
+          // No user
+          console.log("🚫 No user, clearing state.");
           setUser(null);
           setToken(null);
         }
 
-        // ✅ Initial loading is done – set loading to false
+        // ✅ Done loading
         if (isMounted.current) {
           setLoading(false);
+          console.log("⏳ 8. loading set to false.");
         }
-      } catch (error) {
-        console.error("Auth initialization error:", error);
-        if (isMounted.current) {
-          setLoading(false);
-          setUser(null);
-          setToken(null);
-        }
-      }
-    };
-
-    // 🔥 2. Subscribe to future auth changes (after initial load)
-    // Inside onAuthStateChanged
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      console.log(
-        "🔥 1. onAuthStateChanged fired. User:",
-        firebaseUser?.email || "null",
-      );
-
-      if (firebaseUser) {
-        try {
-          const idToken = await firebaseUser.getIdToken(true);
-          if (idToken) {
-            setToken(idToken);
-          } else {
-            console.error("Failed to get ID token");
-          }
-          const res = await fetch(`${API_URL}/api/auth/verify`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ token: idToken }),
-          });
-          console.log("📡 3. /api/auth/verify status:", res.status);
-
-          if (res.ok) {
-            const data = await res.json();
-            console.log("👤 4. User data received:", data.user);
-            setUser(data.user);
-            console.log("✅ 5. User state set.");
-          } else {
-            console.error("❌ 6. /api/auth/verify failed:", await res.text());
-          }
-        } catch (error) {
-          console.error("❌ 7. Error in auth flow:", error);
-        }
-      } else {
-        console.log("🚫 No user, logging out.");
-        setUser(null);
-        setToken(null);
-      }
-      setLoading(false);
-      console.log("⏳ 8. loading set to false.");
-    });
-
-    // Run the initialisation
-    initAuth();
+      },
+    );
 
     return () => {
       isMounted.current = false;
@@ -162,10 +139,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await signOut(auth);
     setUser(null);
     setToken(null);
+    localStorage.removeItem("activeWorkspaceId");
   };
 
   const switchWorkspace = (workspaceId: number) => {
-    window.localStorage.setItem("activeWorkspaceId", String(workspaceId));
+    localStorage.setItem("activeWorkspaceId", String(workspaceId));
     window.location.reload();
   };
 

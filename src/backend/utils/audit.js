@@ -9,7 +9,6 @@ export async function createAuditLog(
   entityId,
   details,
   req,
-  orderId = null,
 ) {
   const workspaceId = getWorkspaceId(req);
 
@@ -26,7 +25,6 @@ export async function createAuditLog(
         req.connection?.remoteAddress,
       userAgent: req.headers["user-agent"],
       workspaceId,
-      orderId,
     },
   });
 }

@@ -21,9 +21,6 @@ export const fetcher = async (url: string) => {
     };
 
     // ✅ Add workspace header if available
-    if (workspaceId) {
-      headers["x-workspace-id"] = workspaceId;
-    }
 
     const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${url}`, {
       signal: controller.signal,

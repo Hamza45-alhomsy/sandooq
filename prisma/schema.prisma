@@ -1,8 +1,3 @@
-// ============================================
-// PRISMA SCHEMA - Cash Flow Management System
-// Version: 6.6.0 | MySQL | Multi-Tenant
-// ============================================
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -12,48 +7,38 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ============================================
-// USER & AUTH MODELS
-// ============================================
-
 model User {
-  id                Int              @id @default(autoincrement())
-  uid               String           @unique
-  email             String           @unique
-  fullName          String
-  phone             String?
-  roleId            Int
-  role              Role             @relation(fields: [roleId], references: [id], onDelete: NoAction)
-  isActive          Boolean          @default(true)
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
-
-  // Relations
-  orders            Order[]          // orders created by this user
-  approvedOrders    Order[]          @relation("ApprovedOrders") // orders this user approved
-  executedOrders    Order[]          @relation("ExecutedOrders") // orders this user executed
-  uploadedDocuments Document[]       // documents uploaded by this user
-  auditLogs         AuditLog[]
-
-  // Workspace relations
-  ownedWorkspaces   Workspace[]      @relation("WorkspaceOwner")
+  id                   Int               @id @default(autoincrement())
+  uid                  String            @unique
+  email                String            @unique
+  fullName             String
+  phone                String?
+  roleId               Int?
+  role                 Role?             @relation(fields: [roleId], references: [id], onDelete: NoAction)
+  isActive             Boolean           @default(true)
+  createdAt            DateTime          @default(now())
+  updatedAt            DateTime          @updatedAt
+  ownedWorkspaces      Workspace[]       @relation("WorkspaceOwner")
   workspaceMemberships WorkspaceMember[]
+  transactions         Transaction[]     @relation("TransactionOwner")
+  approvedTransactions Transaction[]     @relation("ApprovedTransactions")
+  uploadedDocuments    Document[]
+  auditLogs            AuditLog[]
+  funds                Fund[]            @relation("FundOwner")
 
   @@map("users")
 }
 
 model Role {
-  id          Int          @id @default(autoincrement())
-  name        String       @unique
-  description String?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-
-  // Relations
-  users       User[]
-  permissions Permission[]
-  workspaceMembers WorkspaceMember[]
-  workspaceInvitations WorkspaceInvitation[] // ✅ Added opposite relation
+  id                   Int                   @id @default(autoincrement())
+  name                 String                @unique
+  description          String?
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  users                User[]
+  permissions          Permission[]
+  workspaceMembers     WorkspaceMember[]
+  workspaceInvitations WorkspaceInvitation[]
 
   @@map("roles")
 }
@@ -70,237 +55,211 @@ model Permission {
   @@map("permissions")
 }
 
-// ============================================
-// WORKSPACE MODELS (Multi-Tenant)
-// ============================================
-
 model Workspace {
-  id          Int              @id @default(autoincrement())
-  name        String
-  ownerId     Int
-  owner       User             @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  id               Int                   @id @default(autoincrement())
+  name             String
+  ownerId          Int
+  owner            User                  @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+  members          WorkspaceMember[]
+  invitations      WorkspaceInvitation[]
+  funds            Fund[]
+  transactions     Transaction[]
+  categories       Category[]
+  settings         Setting[]
+  documents        Document[]
+  fundTransactions FundTransaction[]
+  auditLogs        AuditLog[]
 
-  // Relations
-  members     WorkspaceMember[]
-  funds       Fund[]
-  transactions Transaction[]
-  categories  Category[]
-  settings    Setting[]
-  documents   Document[]
-  auditLogs   AuditLog[]
-  workspaceInvitations WorkspaceInvitation[] // ✅ Added opposite relation
-
+  @@index([ownerId])
   @@map("workspaces")
 }
 
 model WorkspaceMember {
-  id          Int      @id @default(autoincrement())
+  id          Int       @id @default(autoincrement())
   userId      Int
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   workspaceId Int
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  roleId      Int
-  role        Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt  @default(now()) 
+  roleId      Int?
+  role        Role?     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
-  @@unique([userId, workspaceId])
+  @@unique([workspaceId, userId])
+  @@index([userId])
   @@map("workspace_members")
 }
 
 model WorkspaceInvitation {
-  id          Int      @id @default(autoincrement())
+  id          Int       @id @default(autoincrement())
   email       String
-  token       String   @unique
+  token       String    @unique
   workspaceId Int
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  roleId      Int
-  role        Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
-  invitedBy   Int      // userId who sent the invitation
-  status      String   @default("pending") // pending, accepted, expired
+  roleId      Int?
+  role        Role?     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  invitedById Int
   expiresAt   DateTime
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt  @default(now())
+  acceptedAt  DateTime?
+  createdAt   DateTime  @default(now())
 
+  @@index([workspaceId, email])
   @@map("workspace_invitations")
 }
 
-// ============================================
-// FUND MODEL
-// ============================================
-
 model Fund {
-  id             Int          @id @default(autoincrement())
-  name           String       @default("Main Fund")
-  currentBalance Float        @default(0.0)
-  currency       String       @default("SYP")
+  id             Int               @id @default(autoincrement())
+  name           String            @default("Main Fund")
+  currentBalance Float             @default(0)
+  currency       String            @default("SYP")
   description    String?
-  workspaceId    Int?
-  workspace      Workspace?   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  workspaceId    Int
+  workspace      Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  userId         Int?
+  owner          User?             @relation("FundOwner", fields: [userId], references: [id], onDelete: Cascade)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+  transactions   FundTransaction[]
 
-  transactions   Transaction[]
-
+  @@index([workspaceId])
+  @@unique([workspaceId, userId])
   @@map("funds")
 }
 
-// ============================================
-// ORDER MODELS
-// ============================================
+model Transaction {
+  id                Int               @id @default(autoincrement())
+  transactionNumber String            @unique
+  type              String
+  status            String            @default("pending")
+  totalAmount       Float
+  description       String?
+  userId            Int
+  user              User              @relation("TransactionOwner", fields: [userId], references: [id], onDelete: NoAction)
+  approvedById      Int?
+  approvedBy        User?             @relation("ApprovedTransactions", fields: [approvedById], references: [id])
+  approvedAt        DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+  notes             String?           @db.Text
+  workspaceId       Int
+  workspace         Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  items             TransactionItem[]
+  documents         Document[]
+  fundTransactions  FundTransaction[]
 
-model Order {
-  id           Int          @id @default(autoincrement())
-  orderNumber  String       @unique
-  type         String       // 'income', 'expense'
-  status       String       @default("pending") // 'pending', 'approved', 'rejected'
-  totalAmount  Float
-  description  String?
-  userId       Int
-  user         User         @relation(fields: [userId], references: [id], onDelete: NoAction)
-  approvedById Int?
-  approvedBy   User?        @relation("ApprovedOrders", fields: [approvedById], references: [id])
-  executedById Int?
-  executedBy   User?        @relation("ExecutedOrders", fields: [executedById], references: [id])
-  executedAt   DateTime?
-  notes        String?      @db.Text
-  createdAt    DateTime     @default(now())
-  updatedAt    DateTime     @updatedAt
-
-  // Relations
-  items       OrderItem[]
-  transaction Transaction?
-  documents   Document[]
-  auditLogs   AuditLog[]    // ✅ This is now properly paired
-
-  // Indexes
+  @@index([workspaceId, createdAt])
   @@index([status, createdAt])
   @@index([userId, createdAt])
-  @@index([orderNumber])
-  @@map("orders")
-}
-
-model OrderItem {
-  id          Int       @id @default(autoincrement())
-  orderId     Int
-  order       Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  description String
-  quantity    Int       @default(1)
-  unitPrice   Float
-  totalPrice  Float
-  categoryId  Int?
-  category    Category? @relation(fields: [categoryId], references: [id])
-  createdAt   DateTime  @default(now())
-
-  @@map("order_items")
-}
-
-model Category {
-  id          Int        @id @default(autoincrement())
-  name        String     @unique
-  type        String     // 'income', 'expense'
-  description String?
-  workspaceId Int?
-  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-
-  items       OrderItem[]
-
-  @@map("categories")
-}
-
-// ============================================
-// TRANSACTION MODEL
-// ============================================
-
-model Transaction {
-  id            Int      @id @default(autoincrement())
-  orderId       Int      @unique
-  order         Order    @relation(fields: [orderId], references: [id], onDelete: NoAction)
-  fundId        Int
-  fund          Fund     @relation(fields: [fundId], references: [id], onDelete: NoAction)
-  amount        Float    // Positive = income, Negative = expense
-  balanceBefore Float
-  balanceAfter  Float
-  description   String?
-  workspaceId   Int?
-  workspace     Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  createdAt     DateTime @default(now())
-
-  @@index([createdAt])
-  @@index([fundId, createdAt])
   @@map("transactions")
 }
 
-// ============================================
-// DOCUMENT MODEL
-// ============================================
+model TransactionItem {
+  id            Int         @id @default(autoincrement())
+  transactionId Int
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  description   String
+  quantity      Float       @default(1)
+  unitPrice     Float
+  totalPrice    Float
+  categoryId    Int?
+  category      Category?   @relation(fields: [categoryId], references: [id])
+  createdAt     DateTime    @default(now())
+
+  @@index([transactionId])
+  @@index([categoryId])
+  @@map("transaction_items")
+}
+
+model Category {
+  id          Int               @id @default(autoincrement())
+  name        String
+  nameAr      String?
+  type        String
+  description String?
+  workspaceId Int
+  workspace   Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  items       TransactionItem[]
+
+  @@unique([workspaceId, name])
+  @@index([workspaceId, type])
+  @@map("categories")
+}
+
+model FundTransaction {
+  id            Int         @id @default(autoincrement())
+  transactionId Int
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: NoAction)
+  fundId        Int
+  fund          Fund        @relation(fields: [fundId], references: [id], onDelete: NoAction)
+  amount        Float
+  balanceBefore Float
+  balanceAfter  Float
+  description   String?
+  workspaceId   Int
+  workspace     Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now())
+
+  @@index([workspaceId, createdAt])
+  @@index([fundId, createdAt])
+  @@map("fund_transactions")
+}
 
 model Document {
-  id           Int      @id @default(autoincrement())
-  orderId      Int
-  order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  fileName     String
-  fileUrl      String
-  fileSize     Int?
-  mimeType     String?
-  uploadedById Int
-  uploadedBy   User     @relation(fields: [uploadedById], references: [id], onDelete: NoAction)
-  description  String?
-  workspaceId  Int?
-  workspace    Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  createdAt    DateTime @default(now())
+  id            Int         @id @default(autoincrement())
+  transactionId Int
+  transaction   Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade)
+  fileName      String
+  fileUrl       String
+  fileSize      Int?
+  mimeType      String?
+  uploadedById  Int
+  uploadedBy    User        @relation(fields: [uploadedById], references: [id], onDelete: NoAction)
+  description   String?
+  workspaceId   Int
+  workspace     Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdAt     DateTime    @default(now())
 
-  @@index([orderId, createdAt])
+  @@index([workspaceId, createdAt])
+  @@index([transactionId, createdAt])
   @@map("documents")
 }
 
-// ============================================
-// AUDIT LOG MODEL
-// ============================================
-
 model AuditLog {
-  id          Int      @id @default(autoincrement())
+  id          Int       @id @default(autoincrement())
   userId      Int
-  user        User     @relation(fields: [userId], references: [id], onDelete: NoAction)
-  action      String   // 'CREATE_ORDER', 'APPROVE_ORDER', etc.
-  entityType  String   // 'Order', 'User', 'Fund', 'Setting'
-  entityId    Int      // ID of the affected record
-  details     Json?    // Additional context as JSON
+  user        User      @relation(fields: [userId], references: [id], onDelete: NoAction)
+  action      String
+  entityType  String
+  entityId    Int
+  details     Json?
   ipAddress   String?
   userAgent   String?
-  workspaceId Int?
-  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspaceId Int
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
 
-  // ✅ Add relation to Order to satisfy Order.auditLogs
-  orderId     Int?
-  order       Order?   @relation(fields: [orderId], references: [id], onDelete: NoAction)
-
-  createdAt   DateTime @default(now())
-
-  @@index([userId, createdAt])
+  @@index([workspaceId, createdAt])
   @@index([entityType, entityId])
   @@map("audit_logs")
 }
 
-// ============================================
-// SETTINGS MODEL
-// ============================================
-
 model Setting {
-  id          Int      @id @default(autoincrement())
-  key         String   @unique
+  id          Int       @id @default(autoincrement())
+  key         String
   value       String
   description String?
-  group       String   // 'general', 'notifications', 'system', 'company'
-  isPublic    Boolean  @default(false)
-  workspaceId Int?
-  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt 
+  group       String
+  isPublic    Boolean   @default(false)
+  workspaceId Int
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
+  @@unique([workspaceId, key])
+  @@index([workspaceId])
   @@map("settings")
 }
