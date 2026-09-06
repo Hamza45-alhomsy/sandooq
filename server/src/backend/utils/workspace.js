@@ -42,7 +42,12 @@ export async function ensureWorkspace(req, res, next) {
 
     next();
   } catch (error) {
-    console.error("Workspace middleware error:", error);
+    console.error("Workspace middleware error:", {
+      name: error?.name,
+      code: error?.code,
+      message: error?.message,
+      meta: error?.meta,
+    });
     return res.status(500).json({ error: "Workspace verification failed" });
   }
 }

@@ -37,7 +37,12 @@ export const authenticateUser = async (req, res, next) => {
 
     next();
   } catch (error) {
-    console.error("Authentication service error:", error);
+    console.error("Authentication service error:", {
+      name: error?.name,
+      code: error?.code,
+      message: error?.message,
+      meta: error?.meta,
+    });
     return res
       .status(500)
       .json({ error: "Authentication service unavailable" });

@@ -105,15 +105,24 @@ export const verifyToken = async (req, res) => {
     // req.user.workspaceId, req.user.workspace, etc. are attached by ensureWorkspace
     const user = req.user;
 
-    // Log the login
-    await createAuditLog(
-      user.id,
-      "LOGIN",
-      "User",
-      user.id,
-      { email: user.email },
-      req,
-    );
+    // Audit logging should not prevent an otherwise valid login.
+    try {
+      await createAuditLog(
+        user.id,
+        "LOGIN",
+        "User",
+        user.id,
+        { email: user.email },
+        req,
+      );
+    } catch (auditError) {
+      console.error("Login audit log failed:", {
+        name: auditError?.name,
+        code: auditError?.code,
+        message: auditError?.message,
+        meta: auditError?.meta,
+      });
+    }
 
     // Fetch the user's workspaces (for the sidebar switcher)
     const workspaces = await prisma.workspace.findMany({
@@ -143,7 +152,12 @@ export const verifyToken = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Verification error:", error);
+    console.error("Verification error:", {
+      name: error?.name,
+      code: error?.code,
+      message: error?.message,
+      meta: error?.meta,
+    });
     res.status(500).json({ error: "Authentication service unavailable" });
   }
 };
