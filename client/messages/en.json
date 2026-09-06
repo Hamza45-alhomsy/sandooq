@@ -186,7 +186,18 @@
     "remove": "Remove",
     "total": "Total",
     "create": "Create Transaction",
-    "creating": "Creating..."
+    "creating": "Creating...",
+    "errors": {
+      "typeRequired": "Transaction type is required",
+      "titleRequired": "Transaction title is required",
+      "itemDescriptionRequired": "Item description is required",
+      "quantityRequired": "Quantity must be greater than zero",
+      "priceRequired": "Price must be greater than zero",
+      "categoryRequired": "Category is required",
+      "itemRequired": "At least one item is required",
+      "fileTooLarge": "{name} exceeds the 5MB limit",
+      "unsupportedFile": "{name} is not a supported file type"
+    }
   },
   "Sidebar": {
     "title": "Cash Flow System",

@@ -1,10 +1,16 @@
 // config/multer.js — Multer configuration for file uploads
 import multer from "multer";
 import fs from "fs";
+import { dirname, join } from "path";
+import { fileURLToPath } from "url";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+const uploadDirectory = join(__dirname, "../../../uploads");
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    const dir = "./uploads";
+    const dir = uploadDirectory;
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }

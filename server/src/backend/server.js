@@ -25,7 +25,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 // Load .env from project root
-const envPath = join(__dirname, "../../.env");
+const envPath = join(__dirname, "../../../.env");
 dotenv.config({ path: envPath });
 console.log("✅ Environment loaded from:", envPath);
 
@@ -46,7 +46,7 @@ app.use(
 app.use(express.json());
 
 // 📁 Serve uploaded files statically
-app.use("/uploads", express.static("uploads"));
+app.use("/uploads", express.static(join(__dirname, "../../uploads")));
 
 // ============ MOUNT ROUTES ============
 app.use("/", testRoutes);

@@ -28,10 +28,7 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
-    "**/*.mts",
-    "server.js",
-    "src/backend/server.js",
-    "src/backend/repositories/clientRepository.js"
+    "**/*.mts"
   ],
   "exclude": ["node_modules"]
 }

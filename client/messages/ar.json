@@ -162,7 +162,18 @@
     "remove": "حذف",
     "total": "المجموع",
     "create": "إنشاء المعاملة",
-    "creating": "جاري الإنشاء..."
+    "creating": "جاري الإنشاء...",
+    "errors": {
+      "typeRequired": "نوع المعاملة مطلوب",
+      "titleRequired": "عنوان المعاملة مطلوب",
+      "itemDescriptionRequired": "وصف العنصر مطلوب",
+      "quantityRequired": "يجب أن تكون الكمية أكبر من صفر",
+      "priceRequired": "يجب أن يكون السعر أكبر من صفر",
+      "categoryRequired": "الفئة مطلوبة",
+      "itemRequired": "يجب إضافة عنصر واحد على الأقل",
+      "fileTooLarge": "حجم {name} يتجاوز 5 ميغابايت",
+      "unsupportedFile": "نوع الملف {name} غير مدعوم"
+    }
   },
   "Sidebar": {
     "title": "نظام التدفق",

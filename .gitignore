@@ -3,6 +3,10 @@
 # dependencies
 /uploads
 /node_modules
+/client/.next
+/client/node_modules
+/server/node_modules
+/server/uploads
 /.pnp
 .pnp.*
 .yarn/*
@@ -40,6 +44,7 @@ service-account-key.json
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+client/next-env.d.ts
 
-./src/generated/prisma
-./src/backend/test-api.js
+server/src/generated/prisma
+server/src/backend/test-api.js

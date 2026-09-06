@@ -38,24 +38,41 @@ const ACCEPTED_FILE_TYPES = [
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
 ];
 
-const transactionSchema = z.object({
-  type: z.enum(["income", "expense"], {
-    required_error: "نوع الطلب مطلوب",
-  }),
-  description: z.string().trim().min(1, "عنوان المعاملة مطلوب"),
-  items: z
-    .array(
-      z.object({
-        description: z.string().min(1, "الوصف مطلوب"),
-        quantity: z.number().min(0.01, "الكمية مطلوبة"),
-        unitPrice: z.number().min(0.01, "السعر مطلوب"),
-        categoryId: z.number().int().nullable().optional(),
-      }),
-    )
-    .min(1, "يجب إضافة عنصر واحد على الأقل"),
-});
+const createTransactionSchema = (messages: {
+  typeRequired: string;
+  titleRequired: string;
+  itemDescriptionRequired: string;
+  quantityRequired: string;
+  priceRequired: string;
+  categoryRequired: string;
+  itemRequired: string;
+}) =>
+  z.object({
+    type: z.enum(["income", "expense"], {
+      required_error: messages.typeRequired,
+    }),
+    description: z.string().trim().min(1, messages.titleRequired),
+    items: z
+      .array(
+        z.object({
+          description: z.string().min(1, messages.itemDescriptionRequired),
+          quantity: z.number().min(0.01, messages.quantityRequired),
+          unitPrice: z.number().min(0.01, messages.priceRequired),
+          categoryId: z
+            .number()
+            .int()
+            .nullable()
+            .refine(
+              (categoryId) => categoryId !== null,
+              messages.categoryRequired,
+            ),
+        }),
+      )
+      .min(1, messages.itemRequired),
+  });
 
-type TransactionFormData = z.infer<typeof transactionSchema>;
+type TransactionFormInput = z.input<ReturnType<typeof createTransactionSchema>>;
+type TransactionFormData = z.output<ReturnType<typeof createTransactionSchema>>;
 
 interface UploadFile {
   file: File;
@@ -136,6 +153,17 @@ export default function CreateTransactionPage() {
     revalidateIfStale: true,
     revalidateOnFocus: true,
   });
+  const transactionSchema = createTransactionSchema({
+    typeRequired: t("CreateTransaction.errors.typeRequired"),
+    titleRequired: t("CreateTransaction.errors.titleRequired"),
+    itemDescriptionRequired: t(
+      "CreateTransaction.errors.itemDescriptionRequired",
+    ),
+    quantityRequired: t("CreateTransaction.errors.quantityRequired"),
+    priceRequired: t("CreateTransaction.errors.priceRequired"),
+    categoryRequired: t("CreateTransaction.errors.categoryRequired"),
+    itemRequired: t("CreateTransaction.errors.itemRequired"),
+  });
 
   const {
     register,
@@ -144,7 +172,7 @@ export default function CreateTransactionPage() {
     watch,
     setValue,
     formState: { errors },
-  } = useForm<TransactionFormData>({
+  } = useForm<TransactionFormInput, unknown, TransactionFormData>({
     resolver: zodResolver(transactionSchema),
     defaultValues: {
       type: "expense",
@@ -257,12 +285,16 @@ export default function CreateTransactionPage() {
       const file = files[i];
 
       if (file.size > MAX_FILE_SIZE) {
-        toast.error(`${file.name} exceeds 5MB limit`);
+        toast.error(
+          t("CreateTransaction.errors.fileTooLarge", { name: file.name }),
+        );
         continue;
       }
 
       if (!ACCEPTED_FILE_TYPES.includes(file.type)) {
-        toast.error(`${file.name} is not a supported file type`);
+        toast.error(
+          t("CreateTransaction.errors.unsupportedFile", { name: file.name }),
+        );
         continue;
       }
 
@@ -456,7 +488,6 @@ export default function CreateTransactionPage() {
                   placeholder={t(
                     "CreateTransaction.transactionTitlePlaceholder",
                   )}
-                  required
                 />
                 {errors.description && (
                   <p className="text-sm text-red-500">
@@ -557,6 +588,11 @@ export default function CreateTransactionPage() {
                               )}
                             </SelectContent>
                           </Select>
+                          {errors.items?.[index]?.categoryId && (
+                            <p className="text-sm text-red-500">
+                              {errors.items[index]?.categoryId?.message}
+                            </p>
+                          )}
                         </div>
 
                         <div>

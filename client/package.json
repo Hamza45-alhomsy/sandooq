@@ -1,20 +1,12 @@
 {
-  "name": "cashflow-system",
+  "name": "cashflow-client",
   "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "start:web": "next start",
-    "server": "node src/backend/server.js",
-    "start:api": "node src/backend/server.js",
-    "server:dev": "nodemon src/backend/server.js",
-    "db:push": "prisma db push",
-    "db:generate": "prisma generate",
-    "db:studio": "prisma studio",
-    "db:setup": "prisma db push && prisma db seed",
-    "db:seed": "prisma db seed"
+    "start:client": "next start"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

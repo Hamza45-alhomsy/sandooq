@@ -2,14 +2,14 @@
 
 ## 🎉 Refactoring Status: ✅ COMPLETE
 
-The `src/backend/server.js` has been successfully refactored into a modular, scalable, and maintainable architecture.
+The `server/src/backend/server.js` has been successfully refactored into a modular, scalable, and maintainable architecture.
 
 ---
 
 ## 📁 Directory Structure Created
 
 ```
-src/backend/
+server/src/backend/
 ├── config/                 # Configuration modules
 │   ├── database.js        # Prisma client singleton
 │   ├── firebase.js        # Firebase Admin SDK initialization
@@ -63,27 +63,27 @@ src/backend/
 
 ### Utility Files (`utils/`)
 
-| File         | Lines  | Purpose                                      |
-| ------------ | ------ | -------------------------------------------- |
+| File         | Lines  | Purpose                                            |
+| ------------ | ------ | -------------------------------------------------- |
 | helpers.js   | 16     | Transaction number generation, currency formatting |
-| audit.js     | 17     | Audit log creation                           |
-| **Subtotal** | **33** | Business logic helpers                       |
+| audit.js     | 17     | Audit log creation                                 |
+| **Subtotal** | **33** | Business logic helpers                             |
 
 ### Route Files (`routes/`)
 
-| File                | Lines     | Purpose                                                 |
-| ------------------- | --------- | ------------------------------------------------------- |
-| test.routes.js      | 9         | Health check: GET /api/test                             |
-| auth.routes.js      | 263       | Auth: POST verify, register, debug-verify               |
-| user.routes.js      | 240       | Users: GET, POST create, PUT profile/role               |
-| transaction.routes.js     | 456       | Transactions: GET, POST create, PUT edit, POST approve/reject |
-| fund.routes.js      | 18        | Fund: GET /api/fund                                     |
-| audit.routes.js     | 38        | Audit logs: GET with pagination & filtering             |
-| settings.routes.js  | 56        | Settings: GET, PUT                                      |
-| document.routes.js  | 45        | Documents: POST upload with validation                  |
-| dashboard.routes.js | 101       | Dashboard: GET stats with permissions & aggregations    |
-| roles.routes.js     | 20        | Roles: GET available roles                              |
-| **Subtotal**        | **1,246** | API endpoints (10 route groups)                         |
+| File                  | Lines     | Purpose                                                       |
+| --------------------- | --------- | ------------------------------------------------------------- |
+| test.routes.js        | 9         | Health check: GET /api/test                                   |
+| auth.routes.js        | 263       | Auth: POST verify, register, debug-verify                     |
+| user.routes.js        | 240       | Users: GET, POST create, PUT profile/role                     |
+| transaction.routes.js | 456       | Transactions: GET, POST create, PUT edit, POST approve/reject |
+| fund.routes.js        | 18        | Fund: GET /api/fund                                           |
+| audit.routes.js       | 38        | Audit logs: GET with pagination & filtering                   |
+| settings.routes.js    | 56        | Settings: GET, PUT                                            |
+| document.routes.js    | 45        | Documents: POST upload with validation                        |
+| dashboard.routes.js   | 101       | Dashboard: GET stats with permissions & aggregations          |
+| roles.routes.js       | 20        | Roles: GET available roles                                    |
+| **Subtotal**          | **1,246** | API endpoints (10 route groups)                               |
 
 ### Main Server File
 
@@ -138,26 +138,26 @@ src/backend/
 
 ### Protected Routes (requireAuth)
 
-| Route                     | Method | Permission                     | Purpose                        |
-| ------------------------- | ------ | ------------------------------ | ------------------------------ |
-| `/api/auth/verify`        | POST   | None                           | Token verification & user sync |
-| `/api/users`              | GET    | user:manage                    | List all users                 |
-| `/api/users/create`       | POST   | user:manage                    | Create new user                |
-| `/api/users/:id`          | PUT    | None (self/admin)              | Update profile                 |
-| `/api/users/:id/role`     | PUT    | user:manage                    | Update user role               |
-| `/api/transactions`             | GET    | None (with view_all check)     | List transactions                    |
-| `/api/transactions/:id`         | GET    | None (with view_all check)     | Get single transaction               |
-| `/api/transactions/create`      | POST   | transaction:create                   | Create transaction                   |
-| `/api/transactions/:id`         | PUT    | transaction:create                   | Update pending transaction           |
-| `/api/transactions/:id/approve` | POST   | transaction:approve                  | Approve transaction                  |
-| `/api/transactions/:id/reject`  | POST   | transaction:approve                  | Reject transaction                   |
-| `/api/fund`               | GET    | None                           | Get fund balance               |
-| `/api/documents/upload`   | POST   | None (with transaction access check) | Upload document                |
-| `/api/audit-logs`         | GET    | audit:view                     | Get audit logs with pagination |
-| `/api/settings`           | GET    | setting:manage                 | Get all settings               |
-| `/api/settings`           | PUT    | setting:manage                 | Update settings                |
-| `/api/dashboard/stats`    | GET    | None (with permission checks)  | Get dashboard statistics       |
-| `/api/roles`              | GET    | user:manage                    | Get available roles            |
+| Route                           | Method | Permission                           | Purpose                        |
+| ------------------------------- | ------ | ------------------------------------ | ------------------------------ |
+| `/api/auth/verify`              | POST   | None                                 | Token verification & user sync |
+| `/api/users`                    | GET    | user:manage                          | List all users                 |
+| `/api/users/create`             | POST   | user:manage                          | Create new user                |
+| `/api/users/:id`                | PUT    | None (self/admin)                    | Update profile                 |
+| `/api/users/:id/role`           | PUT    | user:manage                          | Update user role               |
+| `/api/transactions`             | GET    | None (with view_all check)           | List transactions              |
+| `/api/transactions/:id`         | GET    | None (with view_all check)           | Get single transaction         |
+| `/api/transactions/create`      | POST   | transaction:create                   | Create transaction             |
+| `/api/transactions/:id`         | PUT    | transaction:create                   | Update pending transaction     |
+| `/api/transactions/:id/approve` | POST   | transaction:approve                  | Approve transaction            |
+| `/api/transactions/:id/reject`  | POST   | transaction:approve                  | Reject transaction             |
+| `/api/fund`                     | GET    | None                                 | Get fund balance               |
+| `/api/documents/upload`         | POST   | None (with transaction access check) | Upload document                |
+| `/api/audit-logs`               | GET    | audit:view                           | Get audit logs with pagination |
+| `/api/settings`                 | GET    | setting:manage                       | Get all settings               |
+| `/api/settings`                 | PUT    | setting:manage                       | Update settings                |
+| `/api/dashboard/stats`          | GET    | None (with permission checks)        | Get dashboard statistics       |
+| `/api/roles`                    | GET    | user:manage                          | Get available roles            |
 
 ---
 
@@ -196,10 +196,10 @@ src/backend/
 npm run dev
 
 # Production (if backend server runs separately)
-node src/backend/server.js
+cd server; node src/backend/server.js
 
 # With custom port
-PORT=3005 node src/backend/server.js
+cd server; PORT=3005 node src/backend/server.js
 ```
 
 ### 3. File Upload Configuration
@@ -358,4 +358,4 @@ The refactoring follows industry best practices for Express.js applications and 
 
 **Refactoring completed on:** 2026-08-30  
 **Status:** ✅ Ready for production  
-**Backup location:** `src/backend/server.js.backup`
+**Backup location:** `server/src/backend/server.js.backup`
