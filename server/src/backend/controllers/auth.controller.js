@@ -45,38 +45,50 @@ export const registerUser = async (req, res) => {
       password: data.password,
       displayName: data.fullName,
     });
-    const result = await prisma.$transaction(async (tx) => {
-      const user = await tx.user.create({
-        data: {
-          uid: firebaseUser.uid,
-          email: data.email.toLowerCase(),
-          fullName: data.fullName,
-        },
-      });
-      const workspace = await tx.workspace.create({
-        data: {
-          name: data.companyName,
-          ownerId: user.id,
-          members: { create: { userId: user.id } },
-          funds: {
-            create: {
-              name: "My Fund",
-              currency: "SYP",
-              userId: user.id,
-            },
+    try {
+      const result = await prisma.$transaction(async (tx) => {
+        const user = await tx.user.create({
+          data: {
+            uid: firebaseUser.uid,
+            email: data.email.toLowerCase(),
+            fullName: data.fullName,
           },
-          categories: { create: defaultCategories },
-        },
+        });
+        const workspace = await tx.workspace.create({
+          data: {
+            name: data.companyName,
+            ownerId: user.id,
+            members: { create: { userId: user.id } },
+            funds: {
+              create: {
+                name: "My Fund",
+                currency: "SYP",
+                userId: user.id,
+              },
+            },
+            categories: { create: defaultCategories },
+          },
+        });
+        return { user, workspace };
       });
-      return { user, workspace };
-    });
 
-    res.status(201).json({
-      userId: result.user.id,
-      workspaceId: result.workspace.id,
-    });
+      res.status(201).json({
+        userId: result.user.id,
+        workspaceId: result.workspace.id,
+      });
+    } catch (error) {
+      await auth.deleteUser(firebaseUser.uid).catch((cleanupError) => {
+        console.error("Failed to clean up Firebase user:", cleanupError);
+      });
+      throw error;
+    }
   } catch (error) {
-    console.error("Registration error:", error);
+    console.error("Registration error:", {
+      name: error?.name,
+      code: error?.code,
+      message: error?.message,
+      meta: error?.meta,
+    });
     if (error instanceof z.ZodError) {
       return res.status(400).json({ errors: error.errors });
     }
