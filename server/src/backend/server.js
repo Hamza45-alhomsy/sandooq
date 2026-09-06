@@ -63,8 +63,11 @@ app.use("/api/workspaces", workspaceRoutes);
 
 // ============ START SERVER ============
 const PORT = process.env.PORT || 3001;
+const publicUrl = process.env.RAILWAY_PUBLIC_DOMAIN
+  ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
+  : `http://localhost:${PORT}`;
 app.listen(PORT, () => {
-  console.log(`🚀 Cash Flow API running on http://localhost:${PORT}`);
+  console.log(`🚀 Cash Flow API running on ${publicUrl}`);
 });
 
 process.on("SIGINT", async () => {
