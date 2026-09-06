@@ -14,8 +14,16 @@ const prisma = new PrismaClient();
 
 // ============ Firebase Admin Initialization ============
 const serviceAccountPath = join(__dirname, "../service-account-key.json");
-console.log(`📂 Loading service account from: ${serviceAccountPath}`);
-const serviceAccount = JSON.parse(readFileSync(serviceAccountPath, "utf-8"));
+const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_JSON
+  ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON)
+  : JSON.parse(readFileSync(serviceAccountPath, "utf-8"));
+console.log(
+  `📂 Loading Firebase service account from: ${
+    process.env.FIREBASE_SERVICE_ACCOUNT_JSON
+      ? "environment"
+      : serviceAccountPath
+  }`,
+);
 initializeApp({
   credential: cert(serviceAccount),
 });
@@ -213,8 +221,8 @@ async function main() {
       workspaceId: workspace.id,
     },
     {
-      name: "Marketing",
-      nameAr: "التسويق",
+      name: "Market",
+      nameAr: "التسوّق",
       type: "expense",
       workspaceId: workspace.id,
     },

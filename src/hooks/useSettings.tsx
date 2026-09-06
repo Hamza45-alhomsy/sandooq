@@ -1,7 +1,5 @@
 // src/lib/hooks/useSettings.ts
 import useSWR from "swr";
-import { fetcher } from "@/lib/api/fetcher";
-import { useAuth } from "@/contexts/AuthContext";
 import { useLocale } from "next-intl";
 import { auth } from "@/lib/firebase/config";
 
@@ -31,7 +29,6 @@ const settingsFetcher = async (url: string) => {
 };
 
 export function useSettings() {
-  const { user } = useAuth();
   const locale = useLocale();
   const { data, error, isLoading } = useSWR("/api/settings", settingsFetcher);
   const settings = data || [];
@@ -39,10 +36,10 @@ export function useSettings() {
   const companyNameEn =
     settings.find((s: any) => s.key === "company_name_en")?.value ||
     settings.find((s: any) => s.key === "company_name")?.value ||
-    "Cash Flow Management";
+    "Cash Management";
   const companyNameAr =
     settings.find((s: any) => s.key === "company_name_ar")?.value ||
-    companyNameEn;
+    "الإدارة المالية";
   const companyName = locale === "ar" ? companyNameAr : companyNameEn;
 
   const currency =

@@ -235,7 +235,7 @@ export default function AuditPage() {
       </div>
 
       <div className="rounded-md border overflow-x-auto">
-        <Table>
+        <Table className={locale === "ar" ? "[&_th]:text-right" : undefined}>
           <TableHeader>
             <TableRow>
               <TableHead>{t("Audit.action")}</TableHead>

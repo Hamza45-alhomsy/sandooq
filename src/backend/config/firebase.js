@@ -8,10 +8,16 @@ import { getAuth } from "firebase-admin/auth";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-// Load service account JSON
-const serviceAccount = JSON.parse(
-  readFileSync(join(__dirname, "../../../service-account-key.json"), "utf-8"),
-);
+// Railway provides the service account as an environment variable. Keep the
+// local file fallback for development.
+const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_JSON
+  ? JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON)
+  : JSON.parse(
+      readFileSync(
+        join(__dirname, "../../../service-account-key.json"),
+        "utf-8",
+      ),
+    );
 console.log("🔑 Service account project ID:", serviceAccount.project_id);
 
 // Initialize Firebase Admin

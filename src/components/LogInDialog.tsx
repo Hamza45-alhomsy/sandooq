@@ -4,7 +4,7 @@ import { sendPasswordResetEmail } from "firebase/auth";
 
 import { useState } from "react";
 import { useRouter } from "@/i18n/routing";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import {
   signInWithEmailAndPassword,
   GoogleAuthProvider,
@@ -22,10 +22,10 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { toast } from "sonner";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { FcGoogle } from "react-icons/fc";
+import { Eye, EyeOff } from "lucide-react";
 
 interface LoginDialogProps {
   children: React.ReactNode;
@@ -72,12 +72,14 @@ export function LoginDialog({
   defaultTab = "login",
 }: LoginDialogProps) {
   const t = useTranslations();
+  const locale = useLocale();
   const router = useRouter();
   const [open, setOpen] = useState(false);
 
   // Login state
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
+  const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
 
   // Signup state
@@ -85,46 +87,64 @@ export function LoginDialog({
   const [signupEmail, setSignupEmail] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
   const [signupConfirmPassword, setSignupConfirmPassword] = useState("");
+  const [showSignupPassword, setShowSignupPassword] = useState(false);
+  const [showSignupConfirmPassword, setShowSignupConfirmPassword] =
+    useState(false);
   const [signupLoading, setSignupLoading] = useState(false);
+  const [authMessage, setAuthMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
 
   const handleForgotPassword = async () => {
+    setAuthMessage(null);
     if (!loginEmail) {
-      toast.error(t("AuthErrors.resetEmailRequired"));
+      setAuthMessage({
+        type: "error",
+        text: t("AuthErrors.resetEmailRequired"),
+      });
       return;
     }
     try {
       await sendPasswordResetEmail(auth, loginEmail);
-      toast.success(t("AuthErrors.resetSent"));
+      setAuthMessage({ type: "success", text: t("AuthErrors.resetSent") });
     } catch (error: any) {
-      toast.error(getAuthErrorMessage(t, error, "reset"));
+      setAuthMessage({
+        type: "error",
+        text: getAuthErrorMessage(t, error, "reset"),
+      });
     }
   };
 
   const handleGoogleAuth = async () => {
     const provider = new GoogleAuthProvider();
+    setAuthMessage(null);
     try {
       await signInWithPopup(auth, provider);
-      toast.success(
-        t("Login.googleSuccess") || "Signed in with Google successfully!",
-      );
       setOpen(false);
       router.replace("/dashboard");
     } catch (error: any) {
       console.error(error);
-      toast.error(getAuthErrorMessage(t, error, "google"));
+      setAuthMessage({
+        type: "error",
+        text: getAuthErrorMessage(t, error, "google"),
+      });
     }
   };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setAuthMessage(null);
     setLoginLoading(true);
     try {
       await signInWithEmailAndPassword(auth, loginEmail, loginPassword);
-      toast.success(t("Login.success") || "Logged in successfully");
       setOpen(false);
       router.push("/dashboard");
     } catch (error: any) {
-      toast.error(getAuthErrorMessage(t, error, "login"));
+      setAuthMessage({
+        type: "error",
+        text: getAuthErrorMessage(t, error, "login"),
+      });
     } finally {
       setLoginLoading(false);
     }
@@ -132,8 +152,12 @@ export function LoginDialog({
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
+    setAuthMessage(null);
     if (signupPassword !== signupConfirmPassword) {
-      toast.error(t("SignUp.passwordMismatch"));
+      setAuthMessage({
+        type: "error",
+        text: t("SignUp.passwordMismatch"),
+      });
       return;
     }
     setSignupLoading(true);
@@ -148,6 +172,10 @@ export function LoginDialog({
             fullName: signupFullName,
             email: signupEmail,
             password: signupPassword,
+            companyName:
+              locale === "ar"
+                ? "إدارة التدفقات النقدية"
+                : "Cash Flow Management",
           }),
         },
       );
@@ -158,13 +186,12 @@ export function LoginDialog({
           data.error === "Email already registered"
             ? t("AuthErrors.emailAlreadyInUse")
             : t("SignUp.error");
-        toast.error(message);
+        setAuthMessage({ type: "error", text: message });
         return;
       }
 
       // 2. Auto-login
       await signInWithEmailAndPassword(auth, signupEmail, signupPassword);
-      toast.success(t("SignUp.success"));
       setOpen(false);
 
       // ⏳ Wait for AuthContext to verify user with backend
@@ -173,11 +200,29 @@ export function LoginDialog({
       }, 600);
     } catch (error: any) {
       console.error("Signup error:", error);
-      toast.error(getAuthErrorMessage(t, error, "signup"));
+      setAuthMessage({
+        type: "error",
+        text: getAuthErrorMessage(t, error, "signup"),
+      });
     } finally {
       setSignupLoading(false);
     }
   };
+
+  const renderAuthMessage = () =>
+    authMessage && (
+      <p
+        role="status"
+        aria-live="polite"
+        className={
+          authMessage.type === "success"
+            ? "text-sm text-green-600"
+            : "text-sm text-destructive"
+        }
+      >
+        {authMessage.text}
+      </p>
+    );
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -208,21 +253,44 @@ export function LoginDialog({
                   type="email"
                   placeholder="example@system.com"
                   value={loginEmail}
-                  onChange={(e) => setLoginEmail(e.target.value)}
+                  onChange={(e) => {
+                    setLoginEmail(e.target.value);
+                    setAuthMessage(null);
+                  }}
                   required
                   dir="ltr"
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="login-password">{t("Login.password")}</Label>
-                <Input
-                  id="login-password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e.target.value)}
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    id="login-password"
+                    type={showLoginPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    value={loginPassword}
+                    onChange={(e) => {
+                      setLoginPassword(e.target.value);
+                      setAuthMessage(null);
+                    }}
+                    className="pe-10"
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="absolute inset-y-0 end-2 flex items-center text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowLoginPassword((visible) => !visible)}
+                    aria-label={
+                      showLoginPassword ? "Hide password" : "Show password"
+                    }
+                  >
+                    {showLoginPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
               </div>
               <div className="flex items-center justify-end">
                 <Button
@@ -237,6 +305,7 @@ export function LoginDialog({
               <Button type="submit" className="w-full" disabled={loginLoading}>
                 {loginLoading ? t("Login.signingIn") : t("Login.signIn")}
               </Button>
+              {renderAuthMessage()}
             </form>
 
             <div className="relative my-4">
@@ -271,7 +340,10 @@ export function LoginDialog({
                   type="text"
                   placeholder="John Doe"
                   value={signupFullName}
-                  onChange={(e) => setSignupFullName(e.target.value)}
+                  onChange={(e) => {
+                    setSignupFullName(e.target.value);
+                    setAuthMessage(null);
+                  }}
                   required
                   minLength={2}
                 />
@@ -283,39 +355,87 @@ export function LoginDialog({
                   type="email"
                   placeholder="you@example.com"
                   value={signupEmail}
-                  onChange={(e) => setSignupEmail(e.target.value)}
+                  onChange={(e) => {
+                    setSignupEmail(e.target.value);
+                    setAuthMessage(null);
+                  }}
                   required
                   dir="ltr"
                 />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="signup-password">{t("SignUp.password")}</Label>
-                <Input
-                  id="signup-password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={signupPassword}
-                  onChange={(e) => setSignupPassword(e.target.value)}
-                  required
-                  minLength={6}
-                />
+                <div className="relative">
+                  <Input
+                    id="signup-password"
+                    type={showSignupPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    value={signupPassword}
+                    onChange={(e) => {
+                      setSignupPassword(e.target.value);
+                      setAuthMessage(null);
+                    }}
+                    className="pe-10"
+                    required
+                    minLength={6}
+                  />
+                  <button
+                    type="button"
+                    className="absolute inset-y-0 end-2 flex items-center text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowSignupPassword((visible) => !visible)}
+                    aria-label={
+                      showSignupPassword ? "Hide password" : "Show password"
+                    }
+                  >
+                    {showSignupPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="signup-confirm">
                   {t("SignUp.confirmPassword")}
                 </Label>
-                <Input
-                  id="signup-confirm"
-                  type="password"
-                  placeholder="••••••••"
-                  value={signupConfirmPassword}
-                  onChange={(e) => setSignupConfirmPassword(e.target.value)}
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    id="signup-confirm"
+                    type={showSignupConfirmPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    value={signupConfirmPassword}
+                    onChange={(e) => {
+                      setSignupConfirmPassword(e.target.value);
+                      setAuthMessage(null);
+                    }}
+                    className="pe-10"
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="absolute inset-y-0 end-2 flex items-center text-muted-foreground hover:text-foreground"
+                    onClick={() =>
+                      setShowSignupConfirmPassword((visible) => !visible)
+                    }
+                    aria-label={
+                      showSignupConfirmPassword
+                        ? "Hide password"
+                        : "Show password"
+                    }
+                  >
+                    {showSignupConfirmPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
               </div>
               <Button type="submit" className="w-full" disabled={signupLoading}>
                 {signupLoading ? t("SignUp.signingUp") : t("SignUp.signUp")}
               </Button>
+              {renderAuthMessage()}
             </form>
 
             <div className="relative my-4">

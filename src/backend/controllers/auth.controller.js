@@ -4,13 +4,33 @@ import { createAuditLog } from "../utils/audit.js";
 import { auth } from "../config/firebase.js";
 import { z } from "zod";
 
+const defaultCategories = [
+  { name: "Investment Returns", nameAr: "عوائد الاستثمار", type: "income" },
+  { name: "Project Income", nameAr: "إيرادات المشاريع", type: "income" },
+  { name: "Management Fees", nameAr: "رسوم الإدارة", type: "income" },
+  { name: "Operational", nameAr: "تشغيلية", type: "expense" },
+  { name: "Salaries", nameAr: "الرواتب", type: "expense" },
+  { name: "Market", nameAr: "السوق", type: "expense" },
+  { name: "Technology", nameAr: "التقنية", type: "expense" },
+  {
+    name: "Professional Services",
+    nameAr: "الخدمات المهنية",
+    type: "expense",
+  },
+
+  { name: "Travel", nameAr: "السفر", type: "expense" },
+  { name: "Office", nameAr: "المكتب", type: "expense" },
+  { name: "Other Income", nameAr: "إيرادات أخرى", type: "income" },
+  { name: "Other Expenses", nameAr: "مصروفات أخرى", type: "expense" },
+];
+
 export const registerUser = async (req, res) => {
   try {
     const schema = z.object({
       email: z.string().email(),
       password: z.string().min(6),
       fullName: z.string().min(2),
-      companyName: z.string().trim().min(1).default("My Company"),
+      companyName: z.string().trim().min(1).default("Cash Flow Management"),
     });
     const data = schema.parse(req.body);
     const existingUser = await prisma.user.findUnique({
@@ -45,6 +65,7 @@ export const registerUser = async (req, res) => {
               userId: user.id,
             },
           },
+          categories: { create: defaultCategories },
         },
       });
       return { user, workspace };
@@ -101,7 +122,6 @@ export const verifyToken = async (req, res) => {
         id: user.id,
         email: user.email,
         fullName: user.fullName,
-        phone: user.phone || null,
         isActive: user.isActive,
         workspaces: workspaces.map((workspace) => ({
           ...workspace,

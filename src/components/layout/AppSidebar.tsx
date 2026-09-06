@@ -114,14 +114,18 @@ export function AppSidebar() {
       </SidebarContent>
 
       <SidebarFooter className="border-t p-4 space-y-2">
-        <div className="flex items-center gap-2 px-2">
+        <SidebarMenuButton
+          render={<Link href="/profile" />}
+          tooltip={t("profile")}
+          className="h-auto w-full justify-start px-2 py-1"
+        >
           <Avatar className="h-7 w-7">
             <AvatarFallback>{userInitial}</AvatarFallback>
           </Avatar>
           <div className="flex-1 truncate text-sm">
             <p className="font-medium truncate">{user?.fullName}</p>
           </div>
-        </div>
+        </SidebarMenuButton>
 
         <Button
           variant="outline"

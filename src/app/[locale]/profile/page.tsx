@@ -25,7 +25,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { LogOut } from "lucide-react";
+import { Eye, EyeOff, LogOut } from "lucide-react";
 import {
   updatePassword,
   reauthenticateWithCredential,
@@ -44,7 +44,14 @@ export default function ProfilePage() {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmNewPassword, setShowConfirmNewPassword] = useState(false);
   const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordMessage, setPasswordMessage] = useState<{
+    type: "success" | "error";
+    text: string;
+  } | null>(null);
   const [logoutDialogOpen, setLogoutDialogOpen] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
 
@@ -87,17 +94,23 @@ export default function ProfilePage() {
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
+    setPasswordMessage(null);
 
     // Validate password
     if (newPassword !== confirmNewPassword) {
-      toast.error(t("Profile.passwordMismatch") || "Passwords do not match");
+      setPasswordMessage({
+        type: "error",
+        text: t("Profile.passwordMismatch") || "Passwords do not match",
+      });
       return;
     }
     if (newPassword.length < 6) {
-      toast.error(
-        t("Profile.passwordTooShort") ||
+      setPasswordMessage({
+        type: "error",
+        text:
+          t("Profile.passwordTooShort") ||
           "Password must be at least 6 characters",
-      );
+      });
       return;
     }
 
@@ -114,24 +127,28 @@ export default function ProfilePage() {
       // 2. Update the password
       await updatePassword(auth.currentUser!, newPassword);
 
-      toast.success(
-        t("Profile.passwordSuccess") || "Password changed successfully!",
-      );
+      setPasswordMessage({
+        type: "success",
+        text: t("Profile.passwordSuccess") || "Password changed successfully!",
+      });
       setCurrentPassword("");
       setNewPassword("");
       setConfirmNewPassword("");
     } catch (error: any) {
       console.error(error);
-      if (error.code === "auth/wrong-password") {
-        toast.error(
-          t("Profile.wrongPassword") || "Current password is incorrect",
-        );
+      if (
+        error.code === "auth/wrong-password" ||
+        error.code === "auth/invalid-credential"
+      ) {
+        setPasswordMessage({
+          type: "error",
+          text: t("Profile.wrongPassword") || "Current password is incorrect",
+        });
       } else {
-        toast.error(
-          error.message ||
-            t("Profile.passwordError") ||
-            "Failed to change password",
-        );
+        setPasswordMessage({
+          type: "error",
+          text: t("Profile.passwordError") || "Failed to change password",
+        });
       }
     } finally {
       setPasswordLoading(false);
@@ -227,43 +244,107 @@ export default function ProfilePage() {
                 <Label htmlFor="current-password">
                   {t("Profile.currentPassword") || "Current Password"}
                 </Label>
-                <Input
-                  id="current-password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    id="current-password"
+                    type={showCurrentPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    value={currentPassword}
+                    onChange={(e) => {
+                      setCurrentPassword(e.target.value);
+                      setPasswordMessage(null);
+                    }}
+                    className="pe-10"
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="absolute inset-y-0 end-2 flex items-center text-muted-foreground hover:text-foreground"
+                    onClick={() =>
+                      setShowCurrentPassword((visible) => !visible)
+                    }
+                    aria-label={
+                      showCurrentPassword ? "Hide password" : "Show password"
+                    }
+                  >
+                    {showCurrentPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="new-password">
                   {t("Profile.newPassword") || "New Password"}
                 </Label>
-                <Input
-                  id="new-password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  required
-                  minLength={6}
-                />
+                <div className="relative">
+                  <Input
+                    id="new-password"
+                    type={showNewPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    value={newPassword}
+                    onChange={(e) => {
+                      setNewPassword(e.target.value);
+                      setPasswordMessage(null);
+                    }}
+                    className="pe-10"
+                    required
+                    minLength={6}
+                  />
+                  <button
+                    type="button"
+                    className="absolute inset-y-0 end-2 flex items-center text-muted-foreground hover:text-foreground"
+                    onClick={() => setShowNewPassword((visible) => !visible)}
+                    aria-label={
+                      showNewPassword ? "Hide password" : "Show password"
+                    }
+                  >
+                    {showNewPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
               </div>
 
               <div className="space-y-2">
                 <Label htmlFor="confirm-new-password">
                   {t("Profile.confirmNewPassword") || "Confirm New Password"}
                 </Label>
-                <Input
-                  id="confirm-new-password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={confirmNewPassword}
-                  onChange={(e) => setConfirmNewPassword(e.target.value)}
-                  required
-                />
+                <div className="relative">
+                  <Input
+                    id="confirm-new-password"
+                    type={showConfirmNewPassword ? "text" : "password"}
+                    placeholder="••••••••"
+                    value={confirmNewPassword}
+                    onChange={(e) => {
+                      setConfirmNewPassword(e.target.value);
+                      setPasswordMessage(null);
+                    }}
+                    className="pe-10"
+                    required
+                  />
+                  <button
+                    type="button"
+                    className="absolute inset-y-0 end-2 flex items-center text-muted-foreground hover:text-foreground"
+                    onClick={() =>
+                      setShowConfirmNewPassword((visible) => !visible)
+                    }
+                    aria-label={
+                      showConfirmNewPassword ? "Hide password" : "Show password"
+                    }
+                  >
+                    {showConfirmNewPassword ? (
+                      <EyeOff className="h-4 w-4" />
+                    ) : (
+                      <Eye className="h-4 w-4" />
+                    )}
+                  </button>
+                </div>
               </div>
 
               <Button
@@ -275,13 +356,26 @@ export default function ProfilePage() {
                   ? t("Profile.updatingPassword") || "Updating..."
                   : t("Profile.updatePassword") || "Update Password"}
               </Button>
+              {passwordMessage && (
+                <p
+                  role="status"
+                  aria-live="polite"
+                  className={
+                    passwordMessage.type === "success"
+                      ? "text-sm text-green-600"
+                      : "text-sm text-destructive"
+                  }
+                >
+                  {passwordMessage.text}
+                </p>
+              )}
             </form>
           </CardContent>
         </Card>
       </div>
 
       <Dialog open={logoutDialogOpen} onOpenChange={setLogoutDialogOpen}>
-        <DialogContent>
+        <DialogContent showCloseButton={false}>
           <DialogHeader>
             <DialogTitle>{t("Settings.logoutConfirmTitle")}</DialogTitle>
             <DialogDescription>
