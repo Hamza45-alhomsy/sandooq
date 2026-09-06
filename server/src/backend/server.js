@@ -66,9 +66,13 @@ const PORT = process.env.PORT || 3001;
 const publicUrl = process.env.RAILWAY_PUBLIC_DOMAIN
   ? `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`
   : `http://localhost:${PORT}`;
-app.listen(PORT, () => {
-  console.log(`🚀 Cash Flow API running on ${publicUrl}`);
-});
+app.listen(
+  PORT,
+  () => {
+    console.log(`🚀 Cash Flow API running on ${publicUrl}`);
+  },
+  "0.0.0.0",
+);
 
 process.on("SIGINT", async () => {
   await prisma.$disconnect();
