@@ -31,15 +31,21 @@ console.log("✅ Environment loaded from:", envPath);
 
 // ============ INITIALIZE EXPRESS APP ============
 const app = express();
+const normalizeOrigin = (origin) => origin?.trim().replace(/\/$/, "");
+const allowedOrigins = [
+  "http://localhost:3000",
+  "http://127.0.0.1:3000",
+  ...(process.env.FRONTEND_URL || "")
+    .split(",")
+    .map(normalizeOrigin)
+    .filter(Boolean),
+];
+console.log("✅ CORS allowed origins:", allowedOrigins);
 
 // ============ GLOBAL MIDDLEWARE ============
 app.use(
   cors({
-    origin: [
-      "http://localhost:3000",
-      "http://127.0.0.1:3000",
-      ...(process.env.FRONTEND_URL ? [process.env.FRONTEND_URL] : []),
-    ],
+    origin: allowedOrigins,
     credentials: true,
   }),
 );
