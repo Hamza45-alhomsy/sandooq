@@ -306,6 +306,14 @@ export default function AnalyzingPage() {
   };
 
   const dateFormat = locale === "ar" ? "dd/MM/yyyy" : "MM/dd/yyyy";
+ const usedCategoryIds = new Set(categoryData.map((item: any) => item.id));
+ const usedIncomeCategories = categoryOptions
+   .filter((category) => category.type === "income")
+   .filter((category) => usedCategoryIds.has(category.id));
+
+ const usedExpenseCategories = categoryOptions
+   .filter((category) => category.type === "expense")
+   .filter((category) => usedCategoryIds.has(category.id));
 
   const renderCategorySelectors = (
     type: "income" | "expense",
@@ -315,7 +323,6 @@ export default function AnalyzingPage() {
       type === "income"
         ? selectedIncomeCategoryIds
         : selectedExpenseCategoryIds;
-
     return (
       <div className="mb-4 space-y-2">
         <div className="flex items-center justify-between gap-3">
@@ -548,10 +555,7 @@ export default function AnalyzingPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {renderCategorySelectors(
-              "income",
-              categoryOptions.filter((category) => category.type === "income"),
-            )}
+            {renderCategorySelectors("income", usedIncomeCategories)}
             <CategoryPieChart
               data={visibleIncomeCategoryData.map((category: any) => ({
                 name: category.name,
@@ -571,10 +575,7 @@ export default function AnalyzingPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {renderCategorySelectors(
-              "expense",
-              categoryOptions.filter((category) => category.type === "expense"),
-            )}
+            {renderCategorySelectors("expense", usedExpenseCategories)}
             <CategoryPieChart
               data={visibleExpenseCategoryData.map((category: any) => ({
                 name: category.name,

@@ -9,7 +9,7 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from "recharts";
-
+import { useTranslations } from "next-intl";
 const GREEN_PALETTE = [
   "#166534",
   "#15803d",
@@ -104,6 +104,7 @@ export default function CategoryPieChart({
   palette = "green",
   compact = false,
 }: CategoryPieChartProps) {
+  const t = useTranslations("charts");
   const { currency } = useSettings();
   const colors = getDynamicColors(data.length, palette);
 
@@ -143,7 +144,7 @@ export default function CategoryPieChart({
             <Tooltip
               formatter={(value: number) => [
                 `${Number(value || 0).toLocaleString()} ${currency}`,
-                "Amount",
+                t("amount"),
               ]}
             />
           </PieChart>

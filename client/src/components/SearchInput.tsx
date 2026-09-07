@@ -45,13 +45,6 @@ export function SearchInput({
     };
   }, [localValue, delay, onChange, value]);
 
-  // Focus on mount
-  useEffect(() => {
-    if (inputRef.current) {
-      inputRef.current.focus();
-    }
-  }, []);
-
   return (
     <div className="relative flex-1 min-w-[150px]">
       <Search className="absolute left-2 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

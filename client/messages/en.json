@@ -408,5 +408,8 @@
     "selectAll": "Select all",
     "clearAll": "Clear all",
     "categoryBreakdown": "Category totals"
+  },
+  "charts": {
+    "amount": "Amount"
   }
 }
