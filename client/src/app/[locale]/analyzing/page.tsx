@@ -199,6 +199,13 @@ export default function AnalyzingPage() {
       total: Number(item.total || 0),
     }));
 
+  const categoryOptions = (categories as any[]).map((category) => ({
+    id: category.id,
+    name:
+      locale === "ar" ? category.nameAr || category.name : category.name,
+    type: category.type,
+  }));
+
   const incomeCategoryData = categoryData.filter(
     (category: any) => category.type === "income",
   );
@@ -206,11 +213,13 @@ export default function AnalyzingPage() {
     (category: any) => category.type === "expense",
   );
 
-  const incomeCategoryIdsKey = incomeCategoryData
+  const incomeCategoryIdsKey = categoryOptions
+    .filter((category) => category.type === "income")
     .map((category: any) => category.id)
     .sort((first: number, second: number) => first - second)
     .join(",");
-  const expenseCategoryIdsKey = expenseCategoryData
+  const expenseCategoryIdsKey = categoryOptions
+    .filter((category) => category.type === "expense")
     .map((category: any) => category.id)
     .sort((first: number, second: number) => first - second)
     .join(",");
@@ -539,7 +548,10 @@ export default function AnalyzingPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {renderCategorySelectors("income", incomeCategoryData)}
+            {renderCategorySelectors(
+              "income",
+              categoryOptions.filter((category) => category.type === "income"),
+            )}
             <CategoryPieChart
               data={visibleIncomeCategoryData.map((category: any) => ({
                 name: category.name,
@@ -559,7 +571,10 @@ export default function AnalyzingPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {renderCategorySelectors("expense", expenseCategoryData)}
+            {renderCategorySelectors(
+              "expense",
+              categoryOptions.filter((category) => category.type === "expense"),
+            )}
             <CategoryPieChart
               data={visibleExpenseCategoryData.map((category: any) => ({
                 name: category.name,
