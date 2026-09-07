@@ -146,79 +146,83 @@ export const createTransaction = async (req, res) => {
       0,
     );
 
-    const newTransaction = await prisma.$transaction(async (tx) => {
-      const transactionNumber = generateTransactionNumber();
+    const newTransaction = await prisma.$transaction(
+      async (tx) => {
+        const transactionNumber = generateTransactionNumber();
 
-      const transaction = await tx.transaction.create({
-        data: {
-          transactionNumber,
-          type: data.type,
-          status: "approved",
-          totalAmount,
-          description: data.description,
-          userId: req.user.id,
-          workspaceId,
-        },
-      });
-
-      await tx.transactionItem.createMany({
-        data: data.items.map((item) => ({
-          transactionId: transaction.id,
-          description: item.description,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice,
-          totalPrice: item.quantity * item.unitPrice,
-          categoryId: item.categoryId ?? null,
-        })),
-      });
-
-      const fund = await tx.fund.findFirst({
-        where: { workspaceId, userId: req.user.id },
-      });
-      const personalFund =
-        fund ||
-        (await tx.fund.create({
+        const transaction = await tx.transaction.create({
           data: {
-            name: "My Fund",
-            currency: "SYP",
-            workspaceId,
+            transactionNumber,
+            type: data.type,
+            status: "approved",
+            totalAmount,
+            description: data.description,
             userId: req.user.id,
+            workspaceId,
+            approvedById: req.user.id,
+            approvedAt: new Date(),
           },
-        }));
+        });
 
-      const newBalance =
-        transaction.type === "income"
-          ? personalFund.currentBalance + transaction.totalAmount
-          : personalFund.currentBalance - transaction.totalAmount;
+        await tx.transactionItem.createMany({
+          data: data.items.map((item) => ({
+            transactionId: transaction.id,
+            description: item.description,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            totalPrice: item.quantity * item.unitPrice,
+            categoryId: item.categoryId ?? null,
+          })),
+        });
 
-      await tx.fund.update({
-        where: { id: personalFund.id },
-        data: { currentBalance: newBalance },
-      });
+        const fund = await tx.fund.findFirst({
+          where: { workspaceId, userId: req.user.id },
+        });
+        const personalFund =
+          fund ||
+          (await tx.fund.create({
+            data: {
+              name: "My Fund",
+              currency: "SYP",
+              workspaceId,
+              userId: req.user.id,
+            },
+          }));
 
-      const signedAmount =
-        transaction.type === "income"
-          ? transaction.totalAmount
-          : -transaction.totalAmount;
-      await tx.fundTransaction.create({
-        data: {
-          transactionId: transaction.id,
-          fundId: personalFund.id,
-          workspaceId,
-          amount: signedAmount,
-          balanceBefore: personalFund.currentBalance,
-          balanceAfter: newBalance,
-          description: transaction.description || transaction.transactionNumber,
-        },
-      });
+        const newBalance =
+          transaction.type === "income"
+            ? personalFund.currentBalance + transaction.totalAmount
+            : personalFund.currentBalance - transaction.totalAmount;
 
-      await tx.transaction.update({
-        where: { id: transaction.id },
-        data: { approvedById: req.user.id, approvedAt: new Date() },
-      });
+        await tx.fund.update({
+          where: { id: personalFund.id },
+          data: { currentBalance: newBalance },
+        });
 
-      return transaction;
-    });
+        const signedAmount =
+          transaction.type === "income"
+            ? transaction.totalAmount
+            : -transaction.totalAmount;
+        await tx.fundTransaction.create({
+          data: {
+            transactionId: transaction.id,
+            fundId: personalFund.id,
+            workspaceId,
+            amount: signedAmount,
+            balanceBefore: personalFund.currentBalance,
+            balanceAfter: newBalance,
+            description:
+              transaction.description || transaction.transactionNumber,
+          },
+        });
+
+        return transaction;
+      },
+      {
+        maxWait: 10000,
+        timeout: 15000,
+      },
+    );
 
     try {
       await createAuditLog(
