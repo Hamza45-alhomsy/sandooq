@@ -16,6 +16,7 @@ import {
 import { toast } from "sonner";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { apiUrl } from "@/lib/api/url";
 
 export function InviteUserDialog() {
   const { token } = useAuth();
@@ -29,17 +30,14 @@ export function InviteUserDialog() {
     setLoading(true);
 
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/workspaces/invite`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ email, roleId: parseInt(roleId) }),
+      const response = await fetch(apiUrl("/api/workspaces/invite"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-      );
+        body: JSON.stringify({ email, roleId: parseInt(roleId) }),
+      });
 
       if (response.ok) {
         toast.success(`Invitation sent to ${email}`);

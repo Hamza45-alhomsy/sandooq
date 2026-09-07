@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { apiUrl } from "@/lib/api/url";
 
 export default function SettingsPage() {
   const t = useTranslations();
@@ -65,17 +66,14 @@ export default function SettingsPage() {
         { key: "currency", value: formData.currency },
       ];
 
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/settings`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(updates),
+      const response = await fetch(apiUrl("/api/settings"), {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-      );
+        body: JSON.stringify(updates),
+      });
 
       if (response.ok) {
         toast.success(t("Settings.success"));

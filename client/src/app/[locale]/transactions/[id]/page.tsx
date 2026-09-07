@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DocumentUpload } from "@/components/transactions/DocumentUpload";
 import { Download, Eye, File, Pencil } from "lucide-react";
+import { apiUrl } from "@/lib/api/url";
 
 export default function TransactionDetailPage() {
   const t = useTranslations();
@@ -135,7 +136,7 @@ export default function TransactionDetailPage() {
                           {new Date(doc.createdAt).toLocaleDateString()}
                         </span>
                         <a
-                          href={`${process.env.NEXT_PUBLIC_API_URL}${doc.fileUrl}`}
+                          href={apiUrl(doc.fileUrl)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="flex items-center"
@@ -146,7 +147,7 @@ export default function TransactionDetailPage() {
                           </Button>
                         </a>
                         <a
-                          href={`${process.env.NEXT_PUBLIC_API_URL}${doc.fileUrl}`}
+                          href={apiUrl(doc.fileUrl)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="flex items-center"

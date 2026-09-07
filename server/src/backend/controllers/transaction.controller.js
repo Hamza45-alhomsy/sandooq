@@ -183,23 +183,36 @@ export const createTransaction = async (req, res) => {
       return transaction;
     });
 
-    await createAuditLog(
-      req.user.id,
-      "CREATE_TRANSACTION",
-      "Transaction",
-      newTransaction.id,
-      {
-        transactionNumber: newTransaction.transactionNumber,
-        totalAmount,
-        status: newTransaction.status,
-      },
-      req,
-      newTransaction.id,
-    );
+    try {
+      await createAuditLog(
+        req.user.id,
+        "CREATE_TRANSACTION",
+        "Transaction",
+        newTransaction.id,
+        {
+          transactionNumber: newTransaction.transactionNumber,
+          totalAmount,
+          status: newTransaction.status,
+        },
+        req,
+      );
+    } catch (auditError) {
+      console.error("Transaction audit log failed:", {
+        name: auditError?.name,
+        code: auditError?.code,
+        message: auditError?.message,
+        meta: auditError?.meta,
+      });
+    }
 
     res.status(201).json(newTransaction);
   } catch (error) {
-    console.error("Create transaction error:", error);
+    console.error("Create transaction error:", {
+      name: error?.name,
+      code: error?.code,
+      message: error?.message,
+      meta: error?.meta,
+    });
     if (error instanceof z.ZodError) {
       return res.status(400).json({ errors: error.errors });
     }

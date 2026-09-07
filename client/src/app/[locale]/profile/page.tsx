@@ -32,6 +32,7 @@ import {
   EmailAuthProvider,
 } from "firebase/auth";
 import { auth } from "@/lib/firebase/config";
+import { apiUrl } from "@/lib/api/url";
 
 export default function ProfilePage() {
   const t = useTranslations();
@@ -61,17 +62,14 @@ export default function ProfilePage() {
     setLoading(true);
 
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/users/${user.id}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ fullName }),
+      const response = await fetch(apiUrl(`/api/users/${user.id}`), {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-      );
+        body: JSON.stringify({ fullName }),
+      });
 
       if (response.ok) {
         const data = await response.json();

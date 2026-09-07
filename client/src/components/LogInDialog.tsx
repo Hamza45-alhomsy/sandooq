@@ -25,6 +25,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { FcGoogle } from "react-icons/fc";
+import { apiUrl } from "@/lib/api/url";
 import { Eye, EyeOff } from "lucide-react";
 
 interface LoginDialogProps {
@@ -163,22 +164,17 @@ export function LoginDialog({
     setSignupLoading(true);
     try {
       // 1. Register user in Firebase + MySQL
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/auth/register`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            fullName: signupFullName,
-            email: signupEmail,
-            password: signupPassword,
-            companyName:
-              locale === "ar"
-                ? "إدارة التدفقات النقدية"
-                : "Cash Flow Management",
-          }),
-        },
-      );
+      const response = await fetch(apiUrl("/api/auth/register"), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          fullName: signupFullName,
+          email: signupEmail,
+          password: signupPassword,
+          companyName:
+            locale === "ar" ? "إدارة التدفقات النقدية" : "Cash Flow Management",
+        }),
+      });
       const data = await response.json();
 
       if (!response.ok) {

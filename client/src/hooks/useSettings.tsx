@@ -2,6 +2,7 @@
 import useSWR from "swr";
 import { useLocale } from "next-intl";
 import { auth } from "@/lib/firebase/config";
+import { apiUrl } from "@/lib/api/url";
 
 const settingsFetcher = async (url: string) => {
   const firebaseUser = auth.currentUser;
@@ -16,7 +17,7 @@ const settingsFetcher = async (url: string) => {
   const workspaceId = localStorage.getItem("activeWorkspaceId");
   if (workspaceId) headers["x-workspace-id"] = workspaceId;
 
-  const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${url}`, {
+  const res = await fetch(apiUrl(url), {
     headers,
   });
 

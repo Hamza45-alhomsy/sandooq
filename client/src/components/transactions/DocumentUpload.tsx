@@ -18,6 +18,7 @@ import { toast } from "sonner";
 import { Upload, File } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { apiUrl } from "@/lib/api/url";
 
 interface DocumentUploadProps {
   transactionId: number;
@@ -52,16 +53,13 @@ export function DocumentUpload({
     formData.append("transactionId", String(transactionId));
 
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/documents/upload`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-          body: formData,
+      const response = await fetch(apiUrl("/api/documents/upload"), {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
         },
-      );
+        body: formData,
+      });
 
       if (response.ok) {
         toast.success(t("uploadSuccess"));

@@ -1,4 +1,5 @@
 import { auth } from "@/lib/firebase/config";
+import { apiUrl } from "@/lib/api/url";
 
 export const fetcher = async (url: string) => {
   try {
@@ -22,7 +23,7 @@ export const fetcher = async (url: string) => {
 
     // ✅ Add workspace header if available
 
-    const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}${url}`, {
+    const res = await fetch(apiUrl(url), {
       signal: controller.signal,
       headers,
     });

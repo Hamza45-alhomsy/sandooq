@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
+import { apiUrl } from "@/lib/api/url";
 
 export default function CreateCategoryPage() {
   const t = useTranslations();
@@ -31,17 +32,14 @@ export default function CreateCategoryPage() {
     }
     setLoading(true);
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/categories`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(form),
+      const response = await fetch(apiUrl("/api/categories"), {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-      );
+        body: JSON.stringify(form),
+      });
       if (!response.ok) {
         const error = await response.json().catch(() => ({}));
         throw new Error(error.error || t("Settings.error"));

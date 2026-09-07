@@ -27,6 +27,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import { Upload, File, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { apiUrl } from "@/lib/api/url";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024;
 const ACCEPTED_FILE_TYPES = [
@@ -326,7 +327,7 @@ export default function CreateTransactionPage() {
     setLoading(true);
     try {
       const transactionResponse = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/transactions/create`,
+        apiUrl("/api/transactions/create"),
         {
           method: "POST",
           headers: {
@@ -355,7 +356,7 @@ export default function CreateTransactionPage() {
 
           try {
             const uploadResponse = await fetch(
-              `${process.env.NEXT_PUBLIC_API_URL}/api/documents/upload`,
+              apiUrl("/api/documents/upload"),
               {
                 method: "POST",
                 headers: {

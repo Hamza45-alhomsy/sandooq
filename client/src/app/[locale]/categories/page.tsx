@@ -12,6 +12,7 @@ import { Link } from "@/i18n/routing";
 import { useAuth } from "@/contexts/AuthContext";
 import { toast } from "sonner";
 import { Plus, Trash2 } from "lucide-react";
+import { apiUrl } from "@/lib/api/url";
 
 export default function CategoriesPage() {
   const t = useTranslations();
@@ -35,10 +36,10 @@ export default function CategoriesPage() {
 
   const deleteCategory = async (categoryId: number) => {
     try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/categories/${categoryId}`,
-        { method: "DELETE", headers: { Authorization: `Bearer ${token}` } },
-      );
+      const response = await fetch(apiUrl(`/api/categories/${categoryId}`), {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
       if (!response.ok) {
         const error = await response.json().catch(() => ({}));
         throw new Error(error.error || t("Settings.error"));

@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import { useAuth } from "@/contexts/AuthContext";
 import useSWR from "swr";
 import { fetcher } from "@/lib/api/fetcher";
+import { apiUrl } from "@/lib/api/url";
 
 // Zod schema (matches backend)
 const transactionSchema = z.object({
@@ -105,17 +106,14 @@ export default function EditTransactionPage() {
         updatedAt: transaction.updatedAt,
       };
 
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/api/transactions/${id}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify(payload),
+      const response = await fetch(apiUrl(`/api/transactions/${id}`), {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
-      );
+        body: JSON.stringify(payload),
+      });
 
       // 🔐 Handle conflict (409)
       if (response.status === 409) {
