@@ -104,6 +104,43 @@ export const createTransaction = async (req, res) => {
     });
 
     const data = schema.parse(req.body);
+    const workspaceId = getWorkspaceId(req);
+    if (!workspaceId) {
+      return res.status(403).json({ error: "No active workspace" });
+    }
+
+    const categoryIds = [
+      ...new Set(
+        data.items
+          .map((item) => item.categoryId)
+          .filter(
+            (categoryId) => categoryId !== null && categoryId !== undefined,
+          ),
+      ),
+    ];
+    if (categoryIds.length > 0) {
+      const categories = await prisma.category.findMany({
+        where: { id: { in: categoryIds }, workspaceId },
+        select: { id: true, type: true },
+      });
+      const categoriesById = new Map(
+        categories.map((category) => [category.id, category]),
+      );
+      const invalidCategory = data.items.find((item) => {
+        if (item.categoryId === null || item.categoryId === undefined) {
+          return false;
+        }
+        const category = categoriesById.get(item.categoryId);
+        return !category || category.type !== data.type;
+      });
+      if (invalidCategory) {
+        return res.status(400).json({
+          error:
+            "Selected category is invalid for this workspace or transaction type",
+        });
+      }
+    }
+
     const totalAmount = data.items.reduce(
       (sum, item) => sum + item.quantity * item.unitPrice,
       0,
@@ -120,7 +157,7 @@ export const createTransaction = async (req, res) => {
           totalAmount,
           description: data.description,
           userId: req.user.id,
-          workspaceId: getWorkspaceId(req),
+          workspaceId,
         },
       });
 
@@ -136,7 +173,7 @@ export const createTransaction = async (req, res) => {
       });
 
       const fund = await tx.fund.findFirst({
-        where: { workspaceId: getWorkspaceId(req), userId: req.user.id },
+        where: { workspaceId, userId: req.user.id },
       });
       const personalFund =
         fund ||
@@ -144,7 +181,7 @@ export const createTransaction = async (req, res) => {
           data: {
             name: "My Fund",
             currency: "SYP",
-            workspaceId: getWorkspaceId(req),
+            workspaceId,
             userId: req.user.id,
           },
         }));
@@ -167,7 +204,7 @@ export const createTransaction = async (req, res) => {
         data: {
           transactionId: transaction.id,
           fundId: personalFund.id,
-          workspaceId: getWorkspaceId(req),
+          workspaceId,
           amount: signedAmount,
           balanceBefore: personalFund.currentBalance,
           balanceAfter: newBalance,
@@ -215,6 +252,16 @@ export const createTransaction = async (req, res) => {
     });
     if (error instanceof z.ZodError) {
       return res.status(400).json({ errors: error.errors });
+    }
+    if (error?.code === "P2002") {
+      return res.status(409).json({
+        error: "A transaction with this number already exists",
+      });
+    }
+    if (error?.code === "P2003") {
+      return res.status(400).json({
+        error: "Transaction references invalid data",
+      });
     }
     res.status(500).json({ error: "Failed to create transaction" });
   }
